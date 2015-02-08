@@ -1,5 +1,5 @@
-%% Example of the PAA method on gene expression in Mouse
-% This script an example of how to analyze gene expression data with the PAA method.
+%% Illustrating ParTI on gene expression in Mouse tissues (microarrays)
+% This script an example of how to analyze gene expression data with ParTI.
 % It can be used as a template to analyze other datasets.
 
 % Load the data into Matlab from a comma separated value (CSV) file
@@ -50,9 +50,9 @@ GOcat2Genes=[zeros(size(GOcat2Genes,1),size(contAttr,2)),GOcat2Genes];
 contAttrNames = [contAttrNames, GONames];
 contAttr = [contAttr, GOExpression];
 
-%% We are now ready to run the Pareto Archetype Analysis
+%% We are now ready to perform Pareto Task Inference.
 % We use the MVSA algorithm (2), with up to 8 dimensions. We provide the
-% discrete patient attributes, and ask PAA to preliminary booleanize these
+% discrete patient attributes, and ask ParTI to preliminary booleanize these
 % attributes (0). We also pass continuous patient attributes. We also pass 
 % continuous patient features. We pass a boolean matrix specifiying which 
 % genes each continuous feature is baesd on (to be used in the 
@@ -60,7 +60,10 @@ contAttr = [contAttr, GOExpression];
 % be performed with a bin size of 20%. 
 % Finally, the output of the the analysis will be stored in an Excel
 % spreadsheet, under the name 'Mouse_enrichmentAnalysis_*.csv'.
-[arc, arcOrig, pc] = PAAM_lite(geneExpression, 2, 8, discrAttrNames, ...
+[arc, arcOrig, pc] = ParTI_lite(geneExpression, 2, 8, discrAttrNames, ...
      discrAttr, 0, contAttrNames, contAttr, 0.2, 'Mouse_enrichmentAnalysis');
-[arc, errs, arcOrig, pval, pc] = PAAM(geneExpression, 2, 8, discrAttrNames, ...
+
+%% Finally, we perform the compete analysis, including randomization
+% controls and archetype error estimation.
+[arc, errs, arcOrig, pval, pc] = ParTI(geneExpression, 2, 8, discrAttrNames, ...
      discrAttr, 0, contAttrNames, contAttr, GOcat2Genes, 0.2, 'Mouse_enrichmentAnalysis');

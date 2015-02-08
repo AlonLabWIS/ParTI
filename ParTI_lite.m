@@ -1,5 +1,5 @@
-function [arc, errs, arcOrig, pval, pc] = PAAM(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,GOcat2Genes,binSize,OutputFileName)
-%% Inputs 
+function [arc, arcOrig, pc] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,binSize,OutputFileName)
+%% Inputs
 % 1. DataPoints, double matrix with the values of different traits 
 % (the coordinates, e.g. expression level of genes). Each sample is a row, 
 % each trait (e.g. each gene) is a column.
@@ -27,25 +27,18 @@ function [arc, errs, arcOrig, pval, pc] = PAAM(DataPoints,algNum,dim,DiscFeatNam
 % 8. EnMatCont, a double matrix with each Continuous feature as a column, 
 % and each datapoint as a row. The rows of datapoints should match those in 
 % EnMatCont.
-% 9. GOcat2Genes, a boolean matrix of genes x continuous features which
-% indiciates, for each continuous feature, which genes are used to compute 
-% the feature. For use in the leave-one-out analysis. The MakeGOMatrix 
-% function can be used to compute this matrix.
-% 10. binSize, a double variable ranging between 0-1, that is the fraction of the datapoints that should be grouped in a 
+% 9. binSize, a double variable ranging between 0-1, that is the fraction of the datapoints that should be grouped in a 
 % single bin when calculating feature enrichments.
-% 11. OutputFileName, a string that represent the name of the comma or tab delimmited file that saves all enrichment
+% 10. OutputFileName, a string that represent the name of the comma or tab delimmited file that saves all enrichment
 % data. Several files will be created with different ending to specify the continuous enrichment, the discrete enrichment 
 % the significant enriched features and all the features. 
 %
 % Output:
 % arc, a double matrix of the coordinates of the archetypes in the space spanned by the
 % principle components.
-% errs, the confidence intervals on the position of the archetypes
-% estimated by bootstrapping
 % arcOrig, a double matrix of the coordinates of the archetypes in the original space, defined 
 % by datapoints. 
-% pval, a double variable - the p-value that the dataset is described by a simplex
-% pc is a double matrix that saves the pc of the data
+% pc is a double matrix that saves the pc of the data 
 
 % Sisal is presented at Bioucas-Dias JM (2009) in First Workshop on Hyperspectral Image and Signal Processing: Evolution in Remote Sensing, 2009. WHISPERS �09, pp 1�4.
 % MVSA is presented at Li J, Bioucas-Dias JM (2008) in Geoscience and Remote Sensing Symposium, 2008. IGARSS 2008. IEEE International, pp III � 250�III � 253.
@@ -72,17 +65,17 @@ end
 % Initializing the running algorithm parameters
 global lowIterations;
 
-maxRuns=1000; % current value for the number of data randomization
+%maxRuns=1000; % current value for the number of data randomization
 numIter=50; % current value for the number of iterations to run the algorithm
 if exist('lowIterations', 'var') && ~isempty(lowIterations)
-    maxRuns= 20; %current value for the number of data randomization
+    %maxRuns= 20; %current value for the number of data randomization
     numIter= 5 ; %current value for the number of iterations to run the algorithm
-    fprintf('Warning! lowIterations flag set: will only run maxRuns = %d and numIter = %d\n', maxRuns, numIter);
+    fprintf('Warning! lowIterations flag set: will only run numIter = %d\n', numIter);
 end
 
-[pc, arc, errs, arcOrig, pval ] = findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns);
+[pc , arc, arcOrig] = findArchetypes_lite(DataPoints,algNum,dim,OutputFileName,numIter);
 
-calculateEnrichment(pc(:,1:size(arc,2)),arc,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName,numIter,algNum,GOcat2Genes,DataPoints);
+calculateEnrichment_lite(pc(:,1:size(arc,2)),arc,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName);
 
 end
 

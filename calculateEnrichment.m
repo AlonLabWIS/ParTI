@@ -21,7 +21,7 @@ function []=calculateEnrichment(DataPoints,Archetypes,DiscFeatName,EnMatDis,Cont
 % indicates, for each continuous feature, which genes this feature is based 
 % on. This matrix, used for the leave-on-out analysis, can be readily 
 % computed by the MakeGOMatrix function.
-% 12. DataPointsOrg is the original data passed to PAA prior to PCA, which 
+% 12. DataPointsOrg is the original data passed to ParTI prior to PCA, which 
 % is used in the leave-one-out analysis.
 % The output is separate CSV files for discrete and continuous features 
 % with enrichment statistics.
