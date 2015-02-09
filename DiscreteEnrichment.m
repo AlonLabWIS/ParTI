@@ -109,7 +109,7 @@ table =  [repmat((1:Numarchs)',numFeatures,1),... %arch number
        figname = [OutputFileName,num2str(fig + 4),'_discrete_enrichment_',num2str(fig)]; 
        if exist('savefig')
            savefig(figname);
-	end
+       end
    end
    
 

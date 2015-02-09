@@ -125,7 +125,7 @@ end
 
 %% Find the archetypes of the bounding simplex in d-dimensions
 DataDim=size(DataPCA,2);
-%We nNeed to figure out how to generalize volumes to non-simplical polytopes
+%We need to figure out how to generalize volumes to non-simplical polytopes
 %before we allow running PCHA with NArchetypes>DataDim+1
 %if (algNum~=5)
     if (NArchetypes>DataDim+1) %meaning NumArchetypes>dim+1

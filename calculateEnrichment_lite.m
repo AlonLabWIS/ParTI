@@ -73,7 +73,7 @@ disp('Finished computing continuous enrichments.');
 %Discrete
 if sum(~isnan(discreteTable)) > 0 
     DiscreteTitles = {'archetype #', 'Feature Name',  'P value (Hypergeom.)',...
-        'Significant after Benjamini-Hochberg correction?','Is first bin maixmal?'};  
+        'Significant after Benjamini-Hochberg correction?','Is first bin maximal?'};  
     ordDiscTable = sortrows(discreteTable,[1 -4 3]);
     ordDiscFeatureNames = DiscFeatName(ordDiscTable(:,2))';
     fullTable = [DiscreteTitles; num2cell(ordDiscTable)];
@@ -92,7 +92,7 @@ if sum(~isnan(discreteTable)) > 0
 %     xlswrite([OutputFileName '_lite_significant.xls'], DiscreteTitles          ,1,'A1:E1');
 %     xlswrite([OutputFileName '_lite_significant.xls'], filteredDiscTable       ,1,'A2');
 %     xlswrite([OutputFileName '_lite_significant.xls'], FiltDiscFeatureNames    ,1,'B2');
-end 
+end
 
 %Continuous
 if sum(~isnan(continuousTable)) > 0

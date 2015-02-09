@@ -104,7 +104,7 @@ table =  [repmat((1:Numarchs)',numFeatures,1),...
        end
        legend(leg);
        set(gcf,'units','normalized','outerposition',[0, 0 , 1, 1]);
-       figname = [OutputFileName,'_',num2str(fig + 4),'_discrete_enrichment_',num2str(fig)]; 
+       figname = [OutputFileName,num2str(fig + 4),'_discrete_enrichment_',num2str(fig)]; 
        if exist('savefig')
            savefig(figname);
        end

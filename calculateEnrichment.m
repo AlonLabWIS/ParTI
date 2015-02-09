@@ -26,7 +26,6 @@ function []=calculateEnrichment(DataPoints,Archetypes,DiscFeatName,EnMatDis,Cont
 % The output is separate CSV files for discrete and continuous features 
 % with enrichment statistics.
 
-
 % Initialization of parameters
 if binSize <= 0 || binSize > .5
     [~, numDataPoints] = size(DataPoints);
