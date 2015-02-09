@@ -1,4 +1,5 @@
 /scratch/
-*_enrichmentAnalysis_*.csv
+*_continuous_*.csv
+*_discrete_*.csv
 /Data/Cancer/
 /Data/CancerRNAseq/
