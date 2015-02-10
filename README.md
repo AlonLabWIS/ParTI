@@ -6,5 +6,8 @@ The present software package implements the Pareto Task Inference (ParTI) method
 
 The package comes with two example datasets and template scripts to analyse them: a dataset of 2000 tumor breast cancer gene expression dataset by Curtis et al., Nature 486, 345 (2012), and 63 mouse tissues by Lattin et al., Immunome Res 4, 5 (2008).
 
+The article describing the approach can be found here:
+http://www.nature.com/nmeth/journal/vaop/ncurrent/full/nmeth.3254.html
+
 The documentation of the package can be found here:
-http://wws.weizmann.ac.il/mcb/UriAlon/download/ParTI
+http://www.weizmann.ac.il/mcb/UriAlon/download/ParTI

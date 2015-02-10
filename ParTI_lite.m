@@ -1,4 +1,4 @@
-function [arc, arcOrig, pc] = PAAM_lite(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,binSize,OutputFileName)
+function [arc, arcOrig, pc] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,binSize,OutputFileName)
 %% Inputs
 % 1. DataPoints, double matrix with the values of different traits 
 % (the coordinates, e.g. expression level of genes). Each sample is a row, 
@@ -37,8 +37,8 @@ function [arc, arcOrig, pc] = PAAM_lite(DataPoints,algNum,dim,DiscFeatName,EnMat
 % arc, a double matrix of the coordinates of the archetypes in the space spanned by the
 % principle components.
 % arcOrig, a double matrix of the coordinates of the archetypes in the original space, defined 
-% by datapoints. 
-% pc is a double matrix that saves the pc of the data 
+% by datapoints.
+% pc is a double matrix that saves the pc of the data
 
 % Sisal is presented at Bioucas-Dias JM (2009) in First Workshop on Hyperspectral Image and Signal Processing: Evolution in Remote Sensing, 2009. WHISPERS �09, pp 1�4.
 % MVSA is presented at Li J, Bioucas-Dias JM (2008) in Geoscience and Remote Sensing Symposium, 2008. IGARSS 2008. IEEE International, pp III � 250�III � 253.
@@ -65,17 +65,17 @@ end
 % Initializing the running algorithm parameters
 global lowIterations;
 
-%maxRuns=1000; % current value for the number of data randomization
+maxRuns=0; % current value for the number of data randomization, none for lite!
 numIter=50; % current value for the number of iterations to run the algorithm
 if exist('lowIterations', 'var') && ~isempty(lowIterations)
-    %maxRuns= 20; %current value for the number of data randomization
+    maxRuns= 0; %current value for the number of data randomization, none for lite!
     numIter= 5 ; %current value for the number of iterations to run the algorithm
     fprintf('Warning! lowIterations flag set: will only run numIter = %d\n', numIter);
 end
 
-[pc , arc, arcOrig] = findArchetypes_lite(DataPoints,algNum,dim,OutputFileName,numIter);
+[pc, arc, arcOrig] = findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns);
 
-calculateEnrichment_lite(pc(:,1:size(arc,2)),arc,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName);
+calculateEnrichment(pc(:,1:size(arc,2)),arc,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName,[],[],[],[],maxRuns);
 
 end
 

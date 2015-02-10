@@ -28,7 +28,13 @@ function a=GoCategoriesLeaveOneOut(GOidx,GOcat2Genes,DataPoints,NArchetypes,algN
 indGO=find(GOidx)';
 a=zeros(1,length(GOidx));
 
-for i=indGO
+indGOlen = length(indGO);
+for idx=1:indGOlen
+    i = indGO(idx);
+    if mod(i,round(indGOlen/10)) == 0
+        fprintf('%.0f%% done\n', 100*idx/indGOlen);
+    end
+
     % Getting the list of genes that are in a certain GO category
     indGo2Genes=GOcat2Genes(:,i);
     if any(indGo2Genes) %check if the continuous feature is a GO category, if it is not, keep it significant

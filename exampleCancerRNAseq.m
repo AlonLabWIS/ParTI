@@ -1,5 +1,5 @@
-%% Example of the PAA method on gene expression in CancerRNAseq
-% This script an example of how to analyze gene expression data with the PAA method.
+%% Illustrating the ParTI method on gene expression in Cancer (RNAseq)
+% This script an example of how to analyze gene expression data with the ParTI method.
 % It can be used as a template to analyze other datasets.
 
 % Load the data into Matlab from a comma separated value (CSV) file
@@ -64,16 +64,19 @@ contAttr = [contAttr, GOExpression];
 discrAttrNames = regexprep(discrAttrNames, '_', ' ');
 contAttrNames = regexprep(contAttrNames, '_', ' ');
 
-%% We are now ready to run the Pareto Archetype Analysis
+%% We are now ready to perform Pareto Task Inference.
 % We use the Sisal algorithm (1), with up to 8 dimensions. We provide the
-% discrete patient attributes, and ask PAA to preliminary booleanize these
+% discrete patient attributes, and ask ParTI to preliminary booleanize these
 % attributes (0). We also pass continuous patient attributes. We pass a boolean 
 % matrix specifiying which genes each continuous feature is baesd on (to be used
 % in the leave-one-out procedure). We specify that the enrichment analysis 
 % will be performed with a bin size of 5%. Finally, the output of the the 
 % analysis will be stored in an Excel spreadsheet, under the name 
 % 'CancerRNAseq_enrichmentAnalysis_*.csv'.
-[arc, arcFinal, pval] = PAAM_lite(geneExpression, 1, 8, discrAttrNames, ...
+[arc, arcFinal, pc] = ParTI_lite(geneExpression, 1, 8, discrAttrNames, ...
     discrAttr, 0, contAttrNames, contAttr, 0.05, 'CancerRNAseq_enrichmentAnalysis');
-[arc, arcFinal, pval] = PAAM(geneExpression, 1, 8, discrAttrNames, ...
+
+%% Finally, we perform the compete analysis, including randomization
+% controls and archetype error estimation.
+[arc, arcOrig, pc, errs, pval] = ParTI(geneExpression, 1, 8, discrAttrNames, ...
     discrAttr, 0, contAttrNames, contAttr, GOcat2Genes, 0.05, 'CancerRNAseq_enrichmentAnalysis');
