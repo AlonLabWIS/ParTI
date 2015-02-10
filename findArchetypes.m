@@ -286,8 +286,8 @@ else
 	meanClstErrs = ArchsMin';
 	meanlessTemp = meanClstErrs*(coefs1(:,1:NArchetypes-1)');
 	realArchs = bsxfun(@plus,meanlessTemp,mean(DataPoints));
-	ArchsErrors = ~;
-	PvalueRatio = ~;
+	ArchsErrors = [];
+	PvalueRatio = [];
     % At this point, we have all we need to return for the 'lite' version of this function
 end
 
@@ -308,7 +308,7 @@ plot(DataPCA(:,1),DataPCA(:,2),'.k');
 hold on;
 % plot the archetypes in 2d
 for arcCol = 1:NArchetypes
-	if numRuns > 0
+	if maxRuns > 0 %Only show errors if we actually asked to compute them
 	    ellipse(meanClstErrs(arcCol,1),meanClstErrs(arcCol,2),El1(arcCol),...
 	        El2(arcCol),Coeff2d{arcCol},styleel{mod(arcCol-1,14)+1});
 	else
@@ -344,6 +344,9 @@ if (DimFig == 3)
         savefig([OutputFileName,'_ArchsIn3D.fig']);
     end
 end
+
+% Remove the embbed ones before we return the PCA projected data
+DataPCA = DataPCA(:,1:size(scores1,2));
 
 end
 

@@ -28,6 +28,8 @@ function []=calculateEnrichment(DataPoints,Archetypes,DiscFeatName,EnMatDis,Cont
 % with enrichment statistics.
 
 % Initialization of parameters
+minPmax = .5; %minimal probability to be maximally enriched in the bin closest to an archetype that we require to report the category as significantly enriched at the archetype
+
 if binSize <= 0 || binSize > .5
     [~, numDataPoints] = size(DataPoints);
     defaultBinsN = round(numDataPoints / 10);
@@ -99,11 +101,10 @@ if sum(~isnan(discreteTable)) > 0
 	if evalPmax
 		DiscreteTitles = {'archetype #', 'Feature Name',  'P value (Hypergeom.)',...
 	        'Significant after Benjamini-Hochberg correction?','P maximal'};
-		minPmax = .5;
 	else
 		DiscreteTitles = {'archetype #', 'Feature Name',  'P value (Hypergeom.)',...
 			'Significant after Benjamini-Hochberg correction?','Is first bin maximal?'};  
-		minPmax >= 1;
+		minPmax = 1; %we don't have Pmax, only a boolean saying if the frequency of the feature is highest in the bin closest to the archetype
 	end
     ordDiscTable = sortrows(discreteTable,[1 -4 3]);
     ordDiscFeatureNames = DiscFeatName(ordDiscTable(:,2))';
