@@ -59,7 +59,7 @@ plot(percent_explained(1:dim),'.-','linewidth',2,'MarkerSize',20);
 title('Cumulative variability explained per principle component','fontsize',14);
 xlabel('Dimension','fontsize',14);ylabel('% variability explained','fontsize',14);
 if exist('savefig')
-    savefig([OutputFileName,'1_CumVarExpPCA.fig']);
+    savefig([OutputFileName,'_CumVarExpPCA.fig']);
 end
 
 DataPCA=scores1;
@@ -107,7 +107,7 @@ plot(2:dim+1,100*TotESV1,'.-','linewidth',2,'MarkerSize',20);
 title('ESV for different dimensions','fontsize',14);
 xlabel('Number of Archetypes','fontsize',14);ylabel('% variability explained','fontsize',14);
 if exist('savefig')
-    savefig([OutputFileName,'2_ESV.fig']);
+    savefig([OutputFileName,'_ESV.fig']);
 end
 
 %% Get the desired dimension from the user
@@ -289,6 +289,30 @@ else
 	ArchsErrors = [];
 	PvalueRatio = [];
     % At this point, we have all we need to return for the 'lite' version of this function
+    
+    %We'll just compute 'dot' sizes for the archetypes and we're done:
+    tmp=meanClstErrs;
+    if NArchetypes < 3
+        tmp(:,2) = zeros(size(tmp,1),1);
+        if NArchetypes < 2
+           tmp(:,1) = zeros(size(tmp,1),1);
+        end
+    end
+    p = 0.02 * norm(tmp);
+    for l=1:NArchetypes
+        % generate the ellipsoid
+        [Xel,Yel,Zel]= sphere;
+        % move the ellipsoid to the archtype location and rotate the ellipsoid
+        % to its principal axes
+        RotEllipsoidArch=arrayfun(@(x,y,z) [p * x,p* y,p* z]',Xel,Yel,Zel,'uniformoutput',0);
+        RotEllipMat=cell2mat(RotEllipsoidArch);
+        Xeltot{l}=tmp(l,1)+RotEllipMat(1:3:end,:);
+        Yeltot{l}=tmp(l,2)+RotEllipMat(2:3:end,:);
+
+        if DimFig >= 3
+            Zeltot{l}=tmp(l,3)+RotEllipMat(3:3:end,:);
+        end
+    end
 end
 
 % plotting the data in the first 2 PC's
