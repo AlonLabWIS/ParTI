@@ -1,5 +1,5 @@
-function [arc, errs, arcOrig, pval, pc] = ParTI(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,GOcat2Genes,binSize,OutputFileName)
-%% Inputs 
+function [arc, arcOrig, pc, errs, pval] = ParTI(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,GOcat2Genes,binSize,OutputFileName)
+%% Inputs
 % 1. DataPoints, double matrix with the values of different traits 
 % (the coordinates, e.g. expression level of genes). Each sample is a row, 
 % each trait (e.g. each gene) is a column.
@@ -40,12 +40,12 @@ function [arc, errs, arcOrig, pval, pc] = ParTI(DataPoints,algNum,dim,DiscFeatNa
 % Output:
 % arc, a double matrix of the coordinates of the archetypes in the space spanned by the
 % principle components.
+% arcOrig, a double matrix of the coordinates of the archetypes in the original space, defined 
+% by datapoints.
+% pc is a double matrix that saves the pc of the data
 % errs, the confidence intervals on the position of the archetypes
 % estimated by bootstrapping
-% arcOrig, a double matrix of the coordinates of the archetypes in the original space, defined 
-% by datapoints. 
 % pval, a double variable - the p-value that the dataset is described by a simplex
-% pc is a double matrix that saves the pc of the data
 
 % Sisal is presented at Bioucas-Dias JM (2009) in First Workshop on Hyperspectral Image and Signal Processing: Evolution in Remote Sensing, 2009. WHISPERS �09, pp 1�4.
 % MVSA is presented at Li J, Bioucas-Dias JM (2008) in Geoscience and Remote Sensing Symposium, 2008. IGARSS 2008. IEEE International, pp III � 250�III � 253.
@@ -148,9 +148,9 @@ if exist('lowIterations', 'var') && ~isempty(lowIterations)
     fprintf('Warning! lowIterations flag set: will only run maxRuns = %d and numIter = %d\n', maxRuns, numIter);
 end
 
-[pc, arc, errs, arcOrig, pval ] = findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns);
+[pc, arc, arcOrig, errs, pval] = findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns);
 
-calculateEnrichment(pc(:,1:size(arc,2)),arc,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName,numIter,algNum,GOcat2Genes,DataPoints);
+calculateEnrichment(pc(:,1:size(arc,2)),arc,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName,numIter,algNum,GOcat2Genes,DataPoints,maxRuns);
 
 end
 

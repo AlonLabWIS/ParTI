@@ -20,7 +20,7 @@ for algNum = 1:5
         close all
         pause(2);
         try
-            [arc, arcFinal] = ParTI_lite(data, algNum, 5, discrAttrNames, ...
+            [arc, arcOrig] = ParTI_lite(data, algNum, 5, discrAttrNames, ...
                 discrAttr, 0, contAttrNames, contAttr, 0.2, 'Synthetic_enrichmentAnalysis');
         catch
             disp('Caught error message!');
