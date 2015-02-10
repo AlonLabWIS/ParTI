@@ -293,7 +293,7 @@ end
 
 % plotting the data in the first 2 PC's
 styleel={'-r','-g','-b','-m','-y','-c','-k','--r','--b','--g','--k','--m','--c','--y'};
-
+style={'.r','.g','.b','.m','.y','.c','.k','or','ob','og','ok','om','oc','oy'};
 cmap=[1 0 0;
     0 1 0;
     0 0 1;
@@ -312,7 +312,7 @@ for arcCol = 1:NArchetypes
 	    ellipse(meanClstErrs(arcCol,1),meanClstErrs(arcCol,2),El1(arcCol),...
 	        El2(arcCol),Coeff2d{arcCol},styleel{mod(arcCol-1,14)+1});
 	else
-		plot(meanClstErrs(arcCol,1),meanClstErrs(arcCol,2),styleel{mod(arcCol-1,14)+1},'markersize',35);
+		plot(meanClstErrs(arcCol,1),meanClstErrs(arcCol,2),style{mod(arcCol-1,14)+1},'markersize',35);
 	end
     text(meanClstErrs(arcCol,1),meanClstErrs(arcCol,2),['    ', num2str(arcCol)],'FontSize',15);
 end
