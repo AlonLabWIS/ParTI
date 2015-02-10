@@ -79,5 +79,5 @@ contAttrNames = regexprep(contAttrNames, '_', ' ');
 
 %% Finally, we perform the compete analysis, including randomization
 % controls and archetype error estimation.
-[arc, errs, arcOrig, pval, pc] = ParTI(geneExpression, 1, 8, discrAttrNames, ...
+[arc, arcOrig, pc, errs, pval] = ParTI(geneExpression, 1, 8, discrAttrNames, ...
     discrAttr, 0, contAttrNames, contAttr, GOcat2Genes, 0.05, 'Cancer_enrichmentAnalysis');
