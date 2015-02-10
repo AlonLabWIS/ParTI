@@ -71,11 +71,11 @@ FDRs = mafdr(pval(:),'BHFDR',true);
 isSignificantAfterFDR = (FDRs<=ThreshHoldBH); 
 %WriteTable
 %Cols: ArchetypeNum, Features, pvals,Significant After FDR ,Pmaxim
-table =  [repmat((1:Numarchs)',numFeatures,1),...
-          reshape(ones(Numarchs,1)*(1:numFeatures),Numarchs*numFeatures,1),...
-          pval(:),...
-          isSignificantAfterFDR,...
-          Pmaxim(:)];
+table =  [repmat((1:Numarchs)',numFeatures,1),... %arch number
+          reshape(ones(Numarchs,1)*(1:numFeatures),Numarchs*numFeatures,1),... %feat ID
+          pval(:),... %p-value
+          isSignificantAfterFDR,... %is significant
+          Pmaxim(:)]; %Pmaximal
           
  style={'-r','-g','-b','-m','-y','-c','-k','--r','--b','--g','--k','--m','--c','--y'};
    bins = linspace(0, 1, numOfBins);

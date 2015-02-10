@@ -2,19 +2,18 @@ function [DataPCA,ArchsFinal,realArchs]=findArchetypes_lite(DataPoints,algNum,di
 
 %Inputs
 % 1. Data points is the values of different traits (e.g. expression
-% level of genes) - each sample is a row, each trait (gene) is a column 
+% level of genes) - each sample is a row, each trait (gene) is a column
 % 2. algNum is for choosing the algorithm to find the simplex:
 %    algNum=1 :> Sisal (default)
-%    algNum=2 :> MVSA 
+%    algNum=2 :> MVSA
 %    algNum=3 :> MVES
-%    algNum=4 :> SDVMM 
-%    algNum=5 :> PCHA 
+%    algNum=4 :> SDVMM
+%    algNum=5 :> PCHA
 %
 % Sisal is presented at Bioucas-Dias JM (2009) in First Workshop on Hyperspectral Image and Signal Processing: Evolution in Remote Sensing, 2009. WHISPERS �09, pp 1�4.
 % MVSA is presented at Li J, Bioucas-Dias JM (2008) in Geoscience and Remote Sensing Symposium, 2008. IGARSS 2008. IEEE International, pp III � 250�III � 253.
 % SDVMM and MVES are taken from http://mx.nthu.edu.tw/~tsunghan/Source%20codes.html
 % PCHA is taken from http://www.mortenmorup.dk/index_files/Page327.htm
-%
 % 3. dim is the dimension up to which dimension should the ESV be calculated
 % 4. OutputFileName, a tag that will be used in the name of the files in which
 % figures will be saved.
@@ -150,7 +149,7 @@ realArchs = bsxfun(@plus,meanlessTemp,mean(DataPoints));
 
 if NArchetypes < 4
     DimFig = 2;
-else 
+else
     DimFig = 3;
 end
 

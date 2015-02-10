@@ -1,4 +1,4 @@
-function []=calculateEnrichment(DataPoints,Archetypes,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName,numIter,algNum,GOcat2Genes,DataPointsOrg)
+function []=calculateEnrichment(DataPoints,Archetypes,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName,numIter,algNum,GOcat2Genes,DataPointsOrg,evalPmax)
 
 %Inputs
 % 1. Data points is the values of different traits (e.g. expression
@@ -23,6 +23,7 @@ function []=calculateEnrichment(DataPoints,Archetypes,DiscFeatName,EnMatDis,Cont
 % computed by the MakeGOMatrix function.
 % 12. DataPointsOrg is the original data passed to ParTI prior to PCA, which 
 % is used in the leave-one-out analysis.
+% 13. evalPmax determines whether to compute the probability that enrichment is maximal in the first bin. Setting this parameter to 0 skips this computation to save time.
 % The output is separate CSV files for discrete and continuous features 
 % with enrichment statistics.
 
@@ -48,7 +49,7 @@ if size(DiscFeatName) == 0
    DiscFeatName = cellfun(@(x)['Feature ',num2str(x)]...
        ,num2cell(1:size(EnMatDis,2)),'UniformOutput',false);
 end
-discreteTable = DiscreteEnrichment(orderedIndices,EnMatDis,binSize,DiscFeatName,OutputFileName);
+discreteTable = DiscreteEnrichment(orderedIndices,EnMatDis,binSize,DiscFeatName,OutputFileName,evalPmax);
 
 
  disp('Finished computing discrete enrichments.');
@@ -67,7 +68,7 @@ continuousTable = ContinuousEnrichment(orderedIndices,EnMatCont,binSize);
 disp('Finished computing continuous enrichments.');
 
 %calculate the significance after a leave-1-out procedure
-if ~isnan(continuousTable)
+if ~isnan(continuousTable) & evalPmax
     NArchetypes=size(Archetypes,1);
     
     sigGOs=continuousTable(:,6)&continuousTable(:,7);
@@ -95,8 +96,15 @@ end
 % Create tables of enrichment in excel (sheet1-Discrete, sheet2-Continuous)
 %Discrete
 if sum(~isnan(discreteTable)) > 0 
-    DiscreteTitles = {'archetype #', 'Feature Name',  'P value (Hypergeom.)',...
-        'Significant after Benjamini-Hochberg correction?','P maximal'};  
+	if evalPmax
+		DiscreteTitles = {'archetype #', 'Feature Name',  'P value (Hypergeom.)',...
+	        'Significant after Benjamini-Hochberg correction?','P maximal'};
+		minPmax = .5;
+	else
+		DiscreteTitles = {'archetype #', 'Feature Name',  'P value (Hypergeom.)',...
+			'Significant after Benjamini-Hochberg correction?','Is first bin maximal?'};  
+		minPmax >= 1;
+	end
     ordDiscTable = sortrows(discreteTable,[1 -4 3]);
     ordDiscFeatureNames = DiscFeatName(ordDiscTable(:,2))';
     fullTable = [DiscreteTitles; num2cell(ordDiscTable)];
@@ -106,7 +114,7 @@ if sum(~isnan(discreteTable)) > 0
 %     xlswrite([OutputFileName '_All.xls'], ordDiscTable       ,1,'A2');
 %     xlswrite([OutputFileName '_All.xls'], ordDiscFeatureNames,1,'B2');
 
-    filteredDiscTable=ordDiscTable(ordDiscTable(:,4)>0 & ordDiscTable(:,5)>= 0.5,:);
+    filteredDiscTable=ordDiscTable(ordDiscTable(:,4)>0 & ordDiscTable(:,5)>=minPmax,:);
     FiltDiscFeatureNames = DiscFeatName(filteredDiscTable(:,2))';
     
     fullTable = [DiscreteTitles; num2cell(filteredDiscTable)];

@@ -1,4 +1,4 @@
-function [table, pval, PoverQ, Pmaxim, isSignificantAfterFDR] = DiscreteEnrichment(DataPointsInd,EnMatDis,binSize,DiscFeatName,OutputFileName)
+function [table, pval, PoverQ, Pmaxim, isSignificantAfterFDR] = DiscreteEnrichment(DataPointsInd,EnMatDis,binSize,DiscFeatName,OutputFileName,evalPmax)
 
 %Inputs
 % 1. data point indexes sorted according to distances from archetypes (the 
@@ -10,7 +10,7 @@ function [table, pval, PoverQ, Pmaxim, isSignificantAfterFDR] = DiscreteEnrichme
 % 4. DiscFeatName contains the (human-readable) names of the discrete features
 % 5. OutputFileName is a tag that will be used to name the file in which
 % the figure produced by this function will be saved.
-
+% 6. evalPmax determines whether to compute the probability that enrichment is maximal in the first bin. Setting this parameter to 0 skips this computation to save time.
 % Initialazing
 % significance threshold after FDR (Benjamini Hochberg). 
 ThreshHoldBH = 0.1;
@@ -58,14 +58,19 @@ for arch = 1:Numarchs
    
    %PMax
    for j = 2:numOfBins
-   Pmaxim(arch,:) = Pmaxim(arch,:).*HGfuncReg(binnedEnrichment(1,:),...
-       numPointInBin(1) - binnedEnrichment(1,:),binnedEnrichment(j,:),...
-       numPointInBin(j) - binnedEnrichment(j,:));
+		if evalPmax > 0
+			Pmaxim(arch,:) = Pmaxim(arch,:).*HGfuncReg(binnedEnrichment(1,:),...
+				numPointInBin(1) - binnedEnrichment(1,:),binnedEnrichment(j,:),...
+				numPointInBin(j) - binnedEnrichment(j,:));
+		else
+			[~, ind] =  max(PoverQ{arch},[],1);
+			Pmaxim(arch,:) = (ind == 1);
+		end
    end
    
 end
 
- 
+
 
 %FDR
 FDRs = mafdr(pval(:),'BHFDR',true);
@@ -77,7 +82,6 @@ table =  [repmat((1:Numarchs)',numFeatures,1),... %arch number
           pval(:),... %p-value
           isSignificantAfterFDR,... %is significant
           Pmaxim(:)]; %Pmaximal
-          %FDRs]; %FDRs
           
  style={'-r','-g','-b','-m','-y','-c','-k','--r','--b','--g','--k','--m','--c','--y'};
    bins = linspace(0, 1, numOfBins);

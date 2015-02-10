@@ -82,7 +82,7 @@ end
 
 [pc, arc, arcOrig, errs, pval] = findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns);
 
-calculateEnrichment(pc(:,1:size(arc,2)),arc,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName,numIter,algNum,GOcat2Genes,DataPoints);
+calculateEnrichment(pc(:,1:size(arc,2)),arc,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName,numIter,algNum,GOcat2Genes,DataPoints,maxRuns);
 
 end
 

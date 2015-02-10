@@ -1,4 +1,4 @@
-function [DataPCA,meanClstErrs,ArchsErrors,realArchs,PvalueRatio]=findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns)
+function [DataPCA,meanClstErrs,realArchs,ArchsErrors,PvalueRatio]=findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns)
 %Inputs
 % 1. Data points is the values of different traits (e.g. expression
 % level of genes) - each sample is a row, each trait (gene) is a column
@@ -24,8 +24,8 @@ function [DataPCA,meanClstErrs,ArchsErrors,realArchs,PvalueRatio]=findArchetypes
 %Outputs
 % 1. The data after PCA
 % 2. Postition of the archetypes in the low-dim space of PCA
-% 3. Errors on the archetypes obtained by bootstrapping
 % 4. The calculated archetypes in the Original coordinates
+% 3. Covariance matrix of the errors on the archetypes obtained by bootstrapping
 % 5. The statistical significance of the simplex (p-value at the t-ratio test)
 
 addpath(genpath(pwd)); %Add all subfolders of the current directory to run all the diff. algorithms
@@ -141,74 +141,7 @@ DataDim=size(DataPCA,2);
 
 [ArchsMin,VolArchReal]=findMinSimplex(numIter,DataPCA,algNum,NArchetypes);
 
-
-
-%% Calculate the p-values and t-ratios
-
-% calculate the volume of the convex hull of the real dataNArchetypes-1
-ConHullVol = ConvexHull(DataPCA(:,1:min(NArchetypes-1,DataDim)));
-%[~ , ConHullVol]=convhulln(DataPCA(:,1:NArchetypes-1));
-
-% calculate the t-ratio for the real data
-tRatioReal=VolArchReal/ConHullVol;
-
-% run a function that gets the data and outputs the bootstraped shuffled data t-ratios
-% when high number of points exists, Sisal is recommended. If number of
-% points is relatively low, SDVMM is recommended.
-fprintf('Now computing t-ratios.\n');
-
-switch algNum
-    case 1 %    algNum=1 :> Sisal (default)
-        tRatioRand = CalculateSimplexTratiosSisal(DataPCA(:,1:NArchetypes),NArchetypes,maxRuns,numIter);
-    case 2 %    algNum=2 :> MVSA
-        tRatioRand = CalculateSimplexTratiosMVSA(DataPCA(:,1:NArchetypes),NArchetypes,maxRuns,numIter);
-    case 3 %    algNum=3 :> MVES
-        tRatioRand = CalculateSimplexTratiosMVES(DataPCA(:,1:NArchetypes-1),NArchetypes,maxRuns,numIter);
-    case 4 %    algNum=4 :> SDVMM
-        tRatioRand = CalculateSimplexTratiosSDVMM(DataPCA(:,1:NArchetypes-1),NArchetypes,maxRuns,numIter);
-    case 5 %    algNum=5 :> PCHA
-        tRatioRand = CalculateSimplexTratiosPCHA(DataPCA(:,1:min(NArchetypes-1,DataDim)),NArchetypes,maxRuns,numIter);
-end
-
-if algNum<4 %for first three methods the t-ratio is larger than 1, and you want the minimal one
-    PvalueRatio=sum(tRatioRand<tRatioReal)/maxRuns;
-else %for last two methods (SDVMM, PCHA) t-ratio is smaller than 1, and you want the maximal one
-    PvalueRatio=sum(tRatioRand>tRatioReal)/maxRuns;
-end
-
-fprintf('The significance of %d archetypes has p-value of: %2.5f \n',NArchetypes,PvalueRatio);
-
-%% Calculate errors in archetypes (by bootstrapping)
-
-fprintf('Now calculating errors on the archetypes.\n');
-switch algNum
-    case 1 %    algNum=1 :> Sisal (default)
-        ArchsErrors = CalculateSimplexArchErrorsSisal(DataPCA(:,1:NArchetypes),NArchetypes,maxRuns,numIter);
-    case 2 %    algNum=2 :> MVSA
-        ArchsErrors = CalculateSimplexArchErrorsMVSA(DataPCA(:,1:NArchetypes),NArchetypes,maxRuns,numIter);
-    case 3 %    algNum=3 :> MVES
-        ArchsErrors = CalculateSimplexArchErrorsMVES(DataPCA(:,1:NArchetypes-1),NArchetypes,maxRuns,numIter);
-    case 4 %    algNum=4 :> SDVMM
-        ArchsErrors = CalculateSimplexArchErrorsSDVMM(DataPCA(:,1:NArchetypes-1),NArchetypes,maxRuns,numIter);
-    case 5 %    algNum=5 :> PCHA
-        ArchsErrors = CalculateSimplexArchErrorsPCHA(DataPCA(:,1:min(NArchetypes-1,DataDim)),NArchetypes,maxRuns,numIter);
-end
-
-% create the error clouds per archetype
-% cluster the archtypes to clouds
-ArchsErrorsMat=cell2mat(ArchsErrors)';
-switch NArchetypes
-    case 1
-        clusteredArchsErrorInd = ones(size(ArchsErrorsMat,1),1);
-    case 2
-        clusteredArchsErrorInd = (ArchsErrorsMat > 0) + 1;
-    otherwise
-        clusteredArchsErrorInd = kmeans(ArchsErrorsMat,NArchetypes,'distance','cosine','replicates',10);
-        
-        
-end
-
-
+disp('finished finding the archetypes');
 
 if NArchetypes < 4
     DimFig = 2;
@@ -216,69 +149,150 @@ else
     DimFig = 3;
 end
 
-% clusteredArchsError=cell(1,NArchetypes);
 Xeltot=cell(1,NArchetypes);
 Yeltot=cell(1,NArchetypes);
 Zeltot=cell(1,NArchetypes);
-meanClstErrs=zeros(NArchetypes,NArchetypes-1);
-if NArchetypes < 3
-    meanClstErrs(:,2) = zeros(size(meanClstErrs,1),1);
-    if NArchetypes < 2
-        meanClstErrs(:,1) = zeros(size(meanClstErrs,1),1);;
-    end
-end
-El1=zeros(1,NArchetypes);
-El2=zeros(1,NArchetypes);
-phi=zeros(1,NArchetypes);
-Coeff2d = cell(1,NArchetypes);
-RotEllipsoidArch = cell(1,NArchetypes);
-for l=1:NArchetypes
-    clusteredArchsError=ArchsErrorsMat(clusteredArchsErrorInd==l,:);
-    if NArchetypes < 3
-        clusteredArchsError(l,2) = 0;
-        if NArchetypes < 2
-            clusteredArchsError(l,1) = 0;
-        end
-    end
-    % remove the mean of each column - move the errors to zero
-    meanClstErrs(l,:)=mean(clusteredArchsError);
-    clstArchErrMeanless=bsxfun(@minus,clusteredArchsError(:,1:DimFig),meanClstErrs(l,1:DimFig));
-    % calculating the axes of the principal components
-    [Coeff2d{l},~,loadings2d]=princomp(clstArchErrMeanless(:,1:2));
-    El1(l) = loadings2d(1)^(1/2);
-    El2(l) = loadings2d(2)^(1/2);
-    
-    
-    if DimFig >= 3
-        [Coeff,~,loadings]=princomp(clstArchErrMeanless);
-        % generate the ellipsoid
-        [Xel,Yel,Zel]=ellipsoid(0,0,0,loadings(1)^(1/2),loadings(2)^(1/2),loadings(3)^(1/2),25);
-        % move the ellipsoid to the archtype location and rotate the ellipsoid
-        % to its principal axes
-        RotEllipsoidArch{l}=arrayfun(@(x,y,z) Coeff*[x,y,z]',Xel,Yel,Zel,'uniformoutput',0);
-        RotEllipMat=cell2mat(RotEllipsoidArch{l});
-        Xeltot{l}=meanClstErrs(l,1)+RotEllipMat(1:3:end,:);
-        Yeltot{l}=meanClstErrs(l,2)+RotEllipMat(2:3:end,:);
-        Zeltot{l}=meanClstErrs(l,3)+RotEllipMat(3:3:end,:);
-    end
-end
-if NArchetypes < 3
-    meanlessTemp = meanClstErrs(:,1:NArchetypes-1)*(coefs1(:,1:NArchetypes-1)');
-    realArchs = bsxfun(@plus,meanlessTemp,mean(DataPoints));
+
+if maxRuns > 0
+	%% Calculate the p-value from t-ratios
+
+	% calculate the volume of the convex hull of the real dataNArchetypes-1
+	ConHullVol = ConvexHull(DataPCA(:,1:min(NArchetypes-1,DataDim)));
+	%[~ , ConHullVol]=convhulln(DataPCA(:,1:NArchetypes-1));
+
+	% calculate the t-ratio for the real data
+	tRatioReal=VolArchReal/ConHullVol;
+
+	% run a function that gets the data and outputs the bootstraped shuffled data t-ratios
+	% when high number of points exists, Sisal is recommended. If number of
+	% points is relatively low, SDVMM is recommended.
+	fprintf('Now computing t-ratios.\n');
+
+	switch algNum
+	    case 1 %    algNum=1 :> Sisal (default)
+	        tRatioRand = CalculateSimplexTratiosSisal(DataPCA(:,1:NArchetypes),NArchetypes,maxRuns,numIter);
+	    case 2 %    algNum=2 :> MVSA
+	        tRatioRand = CalculateSimplexTratiosMVSA(DataPCA(:,1:NArchetypes),NArchetypes,maxRuns,numIter);
+	    case 3 %    algNum=3 :> MVES
+	        tRatioRand = CalculateSimplexTratiosMVES(DataPCA(:,1:NArchetypes-1),NArchetypes,maxRuns,numIter);
+	    case 4 %    algNum=4 :> SDVMM
+	        tRatioRand = CalculateSimplexTratiosSDVMM(DataPCA(:,1:NArchetypes-1),NArchetypes,maxRuns,numIter);
+	    case 5 %    algNum=5 :> PCHA
+	        tRatioRand = CalculateSimplexTratiosPCHA(DataPCA(:,1:min(NArchetypes-1,DataDim)),NArchetypes,maxRuns,numIter);
+	end
+
+	if algNum<4 %for first three methods the t-ratio is larger than 1, and you want the minimal one
+	    PvalueRatio=sum(tRatioRand<tRatioReal)/maxRuns;
+	else %for last two methods (SDVMM, PCHA) t-ratio is smaller than 1, and you want the maximal one
+	    PvalueRatio=sum(tRatioRand>tRatioReal)/maxRuns;
+	end
+
+	fprintf('The significance of %d archetypes has p-value of: %2.5f \n',NArchetypes,PvalueRatio);
+
+	%% Calculate errors in archetypes (by bootstrapping)
+	fprintf('Now calculating errors on the archetypes.\n');
+	switch algNum
+	    case 1 %    algNum=1 :> Sisal (default)
+	        ArchsErrors = CalculateSimplexArchErrorsSisal(DataPCA(:,1:NArchetypes),NArchetypes,maxRuns,numIter);
+	    case 2 %    algNum=2 :> MVSA
+	        ArchsErrors = CalculateSimplexArchErrorsMVSA(DataPCA(:,1:NArchetypes),NArchetypes,maxRuns,numIter);
+	    case 3 %    algNum=3 :> MVES
+	        ArchsErrors = CalculateSimplexArchErrorsMVES(DataPCA(:,1:NArchetypes-1),NArchetypes,maxRuns,numIter);
+	    case 4 %    algNum=4 :> SDVMM
+	        ArchsErrors = CalculateSimplexArchErrorsSDVMM(DataPCA(:,1:NArchetypes-1),NArchetypes,maxRuns,numIter);
+	    case 5 %    algNum=5 :> PCHA
+	        ArchsErrors = CalculateSimplexArchErrorsPCHA(DataPCA(:,1:min(NArchetypes-1,DataDim)),NArchetypes,maxRuns,numIter);
+	end
+
+	% create the error clouds per archetype
+	% cluster the archtypes to clouds
+	ArchsErrorsMat=cell2mat(ArchsErrors)';
+	switch NArchetypes
+	    case 1
+	        clusteredArchsErrorInd = ones(size(ArchsErrorsMat,1),1);
+	    case 2
+	        clusteredArchsErrorInd = (ArchsErrorsMat > 0) + 1;
+	    otherwise
+	        clusteredArchsErrorInd = kmeans(ArchsErrorsMat,NArchetypes,'distance','cosine','replicates',10);        
+	end
+
+	meanClstErrs=zeros(NArchetypes,NArchetypes-1);
+	if NArchetypes < 3
+	    meanClstErrs(:,2) = zeros(size(meanClstErrs,1),1);
+	    if NArchetypes < 2
+	        meanClstErrs(:,1) = zeros(size(meanClstErrs,1),1);;
+	    end
+	end
+	El1=zeros(1,NArchetypes);
+	El2=zeros(1,NArchetypes);
+	phi=zeros(1,NArchetypes);
+	Coeff2d = cell(1,NArchetypes);
+	RotEllipsoidArch = cell(1,NArchetypes);
+	for l=1:NArchetypes
+	    clusteredArchsError=ArchsErrorsMat(clusteredArchsErrorInd==l,:);
+	    if NArchetypes < 3
+	        clusteredArchsError(l,2) = 0;
+	        if NArchetypes < 2
+	            clusteredArchsError(l,1) = 0;
+	        end
+	    end
+	    % remove the mean of each column - move the errors to zero
+	    meanClstErrs(l,:)=mean(clusteredArchsError);
+	    clstArchErrMeanless=bsxfun(@minus,clusteredArchsError(:,1:DimFig),meanClstErrs(l,1:DimFig));
+	    % calculating the axes of the principal components
+	    [Coeff2d{l},~,loadings2d]=princomp(clstArchErrMeanless(:,1:2));
+	    El1(l) = loadings2d(1)^(1/2);
+	    El2(l) = loadings2d(2)^(1/2);
+	    
+	    
+	    if DimFig >= 3
+	        [Coeff,~,loadings]=princomp(clstArchErrMeanless);
+	        % generate the ellipsoid
+	        [Xel,Yel,Zel]=ellipsoid(0,0,0,loadings(1)^(1/2),loadings(2)^(1/2),loadings(3)^(1/2),25);
+	        % move the ellipsoid to the archtype location and rotate the ellipsoid
+	        % to its principal axes
+	        RotEllipsoidArch{l}=arrayfun(@(x,y,z) Coeff*[x,y,z]',Xel,Yel,Zel,'uniformoutput',0);
+	        RotEllipMat=cell2mat(RotEllipsoidArch{l});
+	        Xeltot{l}=meanClstErrs(l,1)+RotEllipMat(1:3:end,:);
+	        Yeltot{l}=meanClstErrs(l,2)+RotEllipMat(2:3:end,:);
+	        Zeltot{l}=meanClstErrs(l,3)+RotEllipMat(3:3:end,:);
+	    end
+	end
+	if NArchetypes < 3
+	    meanlessTemp = meanClstErrs(:,1:NArchetypes-1)*(coefs1(:,1:NArchetypes-1)');
+	else
+	    meanlessTemp = meanClstErrs*(coefs1(:,1:NArchetypes-1)');
+	end
+	realArchs = bsxfun(@plus,meanlessTemp,mean(DataPoints));
+
+	ArchsErrors = cell(1,NArchetypes);
+	%vol = abs(det(bsxfun(@minus,meanClstErrs(1:end-1,:),meanClstErrs(end,:)))...
+	%    /factorial(NArchetypes-1));
+	for l=1:NArchetypes
+	    clusteredArchsError=ArchsErrorsMat(clusteredArchsErrorInd==l,:);
+	    if NArchetypes < 3
+	        clusteredArchsError(l,2) = 0;
+	        if NArchetypes < 2
+	            clusteredArchsError(l,1) = 0;
+	        end
+	    end
+	     %[~,~,loadingsArc]=princomp(clusteredArchsError);
+	     %volarc = exp(mean(log(loadingsArc)));
+	     ArchsErrors{l} = cov(clusteredArchsError); %volarc / power(vol,1/(NArchetypes-1));
+	end
+
+	disp('finished finding the archetypes error distribution');
 else
-    meanlessTemp = meanClstErrs*(coefs1(:,1:NArchetypes-1)');
-    realArchs = bsxfun(@plus,meanlessTemp,mean(DataPoints));
+	meanClstErrs = ArchsMin';
+	meanlessTemp = meanClstErrs*(coefs1(:,1:NArchetypes-1)');
+	realArchs = bsxfun(@plus,meanlessTemp,mean(DataPoints));
+	ArchsErrors = ~;
+	PvalueRatio = ~;
+    % At this point, we have all we need to return for the 'lite' version of this function
 end
 
-disp('finished finding the archetypes error distribution');
-
-%% Plot the Data + Archetypes in 3 first PC's + Error clouds of the archetypes
-% switch DimFig
-%     case 2
 % plotting the data in the first 2 PC's
 styleel={'-r','-g','-b','-m','-y','-c','-k','--r','--b','--g','--k','--m','--c','--y'};
-
-%         style={'.r','.g','.b','.m','.y','.c','.k','or','ob','og','ok','om','oc','oy'};
 
 cmap=[1 0 0;
     0 1 0;
@@ -288,27 +302,27 @@ cmap=[1 0 0;
     0 1 1;
     0 0 0;];
 
-
 figure;
 % plot the data points
 plot(DataPCA(:,1),DataPCA(:,2),'.k');
 hold on;
 % plot the archetypes in 2d
 for arcCol = 1:NArchetypes
-    ellipse(meanClstErrs(arcCol,1),meanClstErrs(arcCol,2),El1(arcCol),...
-        El2(arcCol),Coeff2d{arcCol},styleel{mod(arcCol-1,14)+1});
+	if numRuns > 0
+	    ellipse(meanClstErrs(arcCol,1),meanClstErrs(arcCol,2),El1(arcCol),...
+	        El2(arcCol),Coeff2d{arcCol},styleel{mod(arcCol-1,14)+1});
+	else
+		plot(meanClstErrs(arcCol,1),meanClstErrs(arcCol,2),styleel{mod(arcCol-1,14)+1},'markersize',35);
+	end
     text(meanClstErrs(arcCol,1),meanClstErrs(arcCol,2),['    ', num2str(arcCol)],'FontSize',15);
-    %          colormap(cmap(arcCol,:));
-    %             freezeColors;
 end
 axis equal
 xlabel('PC1','fontsize',14);ylabel('PC2','fontsize',14);
 if exist('savefig')
-    savefig([OutputFileName,'3_ArchsIn2D.fig']);
+    savefig([OutputFileName,'_ArchsIn2D.fig']);
 end
 
 if (DimFig == 3)
-    
     % plotting the data in the first 3 PC's
     figure;
     % plot the data points
@@ -323,28 +337,12 @@ if (DimFig == 3)
     end
     axis equal
     box on
-    xlabel('PC1','fontsize',14);ylabel('PC2','fontsize',14);
+    xlabel('PC1','fontsize',14);
+	ylabel('PC2','fontsize',14);
     zlabel('PC3','fontsize',14);
     if exist('savefig')
-        savefig([OutputFileName,'4_ArchsIn3D.fig']);
+        savefig([OutputFileName,'_ArchsIn3D.fig']);
     end
-end
-ArchsErrors = cell(1,NArchetypes);
-
-
-%vol = abs(det(bsxfun(@minus,meanClstErrs(1:end-1,:),meanClstErrs(end,:)))...
-%    /factorial(NArchetypes-1));
-for l=1:NArchetypes
-    clusteredArchsError=ArchsErrorsMat(clusteredArchsErrorInd==l,:);
-    if NArchetypes < 3
-        clusteredArchsError(l,2) = 0;
-        if NArchetypes < 2
-            clusteredArchsError(l,1) = 0;
-        end
-    end
-     %[~,~,loadingsArc]=princomp(clusteredArchsError);
-     %volarc = exp(mean(log(loadingsArc)));
-     ArchsErrors{l} = cov(clusteredArchsError); %volarc / power(vol,1/(NArchetypes-1));
 end
 
 end
