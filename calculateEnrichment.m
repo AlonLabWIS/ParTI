@@ -42,19 +42,18 @@ end
 
 % For each Archetype sort the points by their distance to the archetype
 orderedIndices = sortDataByDistance(DataPoints,Archetypes);
- disp('Finished sorting data points.');
+disp('Finished sorting data points.');
     %orderedIndices list of indexes + distances
    
 % Calculate enrichment and significance of discrete features (P/Q + p-value of HG test+
 % + p-value of maximally enriched + Benjamini-Hochberg)
 if size(DiscFeatName) == 0
-   DiscFeatName = cellfun(@(x)['Feature ',num2str(x)]...
-       ,num2cell(1:size(EnMatDis,2)),'UniformOutput',false);
+   DiscFeatName = cellfun(@(x)['Feature ',num2str(x)],...
+       num2cell(1:size(EnMatDis,2)),'UniformOutput',false);
 end
 discreteTable = DiscreteEnrichment(orderedIndices,EnMatDis,binSize,DiscFeatName,OutputFileName,evalPmax);
 
-
- disp('Finished computing discrete enrichments.');
+disp('Finished computing discrete enrichments.');
     % Calculate enrichment (P/Q) + p-value
     
     % Calculate p-value for maximally enriched
@@ -62,8 +61,8 @@ discreteTable = DiscreteEnrichment(orderedIndices,EnMatDis,binSize,DiscFeatName,
     % Correct for multiple hypothesis testing with BH procedure
 
 if size(ContFeatName) == 0
-    ContFeatName = cellfun(@(x)['Feature ',num2str(x)]...
-       ,num2cell(1:size(EnMatCont,2)),'UniformOutput',false);
+    ContFeatName = cellfun(@(x)['Feature ',num2str(x)],...
+       num2cell(1:size(EnMatCont,2)),'UniformOutput',false);
 end
 
 continuousTable = ContinuousEnrichment(orderedIndices,EnMatCont,binSize);  
@@ -71,6 +70,7 @@ disp('Finished computing continuous enrichments.');
 
 %calculate the significance after a leave-1-out procedure
 if ~isnan(continuousTable) & evalPmax
+    disp('Now applying leave-one-out to verify robustness enrichment of GO categories');
     NArchetypes=size(Archetypes,1);
     
     sigGOs=continuousTable(:,6)&continuousTable(:,7);

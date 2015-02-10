@@ -76,7 +76,6 @@ varexpl=zeros(1,dim);
 fprintf('Calculating explained variance with PCHA (Morup M, Hansen KL, 2011)\n');
 
 for indNmembers=1:dim
-    
     Nmembers=indNmembers+1; % number of Archetypes is dimension+1
     
     delta = 0;

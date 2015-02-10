@@ -151,6 +151,7 @@ switch algNum
         ArchsMin=minArchsIter{IndminVol}; %get the minimal archetypes that form this simplex
 end
 
-if ~silent
-    disp('finished finding the archetypes');
-end
+% We already report the following in 'findArchetypes.m', so we don't need it here:
+% if ~silent
+%    disp('finished finding the archetypes');
+% end
