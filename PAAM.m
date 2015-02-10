@@ -12,7 +12,7 @@ function [arc, errs, arcOrig, pval, pc] = PAAM(DataPoints,algNum,dim,DiscFeatNam
 % 3. dim, an integer representing the dimension up to which the Explained Variance (ESV) 
 % should be calculated. ESV is defined as the average distance between the 
 % data points and the best simplex defined by the archetypes found by
-% SDVMM. We recommend to start with a dimension between 5 - 10, and 
+% PCHA. We recommend to start with a dimension between 5 - 10, and 
 %  increase the dimension until an inflexion be spotted the ESV curve.
 % 4. DiscFeatName, a cell array of strings listing the Discrete Feature labels (row)  
 % 5. EnMatDis, a boolean matrix with each Discrete feature as a column, 
@@ -74,6 +74,9 @@ global lowIterations;
 
 maxRuns=1000; % current value for the number of data randomization
 numIter=50; % current value for the number of iterations to run the algorithm
+if (algNum == 5) %PCHA, is more consistent between runs
+   numIter=5; 
+end
 if exist('lowIterations', 'var') && ~isempty(lowIterations)
     maxRuns= 20; %current value for the number of data randomization
     numIter= 5 ; %current value for the number of iterations to run the algorithm
