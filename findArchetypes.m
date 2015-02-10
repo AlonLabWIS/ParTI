@@ -140,7 +140,11 @@ DataDim=size(DataPCA,2);
 %end
 
 [ArchsMin,VolArchReal]=findMinSimplex(numIter,DataPCA,algNum,NArchetypes);
-
+%Now we'll re-order archetypes according to their coordinate on the first
+%PC. This should help achieve some reproducibility from ParTI run to ParTI
+%run.
+[~,ArchsOrder] = sort(ArchsMin(1,:));
+ArchsMin = ArchsMin(:,ArchsOrder);
 disp('finished finding the archetypes');
 
 if NArchetypes < 4
