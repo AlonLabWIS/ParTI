@@ -1,4 +1,4 @@
-%% Jean: this script will test the ParTI package by sequentially running 
+%% This script will test the ParTI package by sequentially running 
 % the synthetic data, the mouse and the cancer, both with ParTI() and ParTI_light().
 
 %% Synthetic data

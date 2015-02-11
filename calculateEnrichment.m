@@ -121,6 +121,7 @@ if sum(~isnan(discreteTable)) > 0
     fullTable = [DiscreteTitles; num2cell(filteredDiscTable)];
     fullTable(2:end,2) = FiltDiscFeatureNames;
     cell2csv([OutputFileName '_discrete_significant.csv'], fullTable);
+    fprintf('*** Wrote summary of enriched discrete features to %s_discrete_significant.csv\n', OutputFileName);
 %     xlswrite([OutputFileName '_significant.xls'], DiscreteTitles          ,1,'A1:E1');
 %     xlswrite([OutputFileName '_significant.xls'], filteredDiscTable       ,1,'A2');
 %     xlswrite([OutputFileName '_significant.xls'], FiltDiscFeatureNames    ,1,'B2');
@@ -146,6 +147,7 @@ if sum(~isnan(continuousTable)) > 0
     fullTable = [ContinuousTitles; num2cell(filteredContTable)];
     fullTable(2:end,2) = FiltContFeatureNames;
     cell2csv([OutputFileName '_continuous_significant.csv'], fullTable);
+    fprintf('*** Wrote summary of enriched continuous features to %s_continuous_significant.csv\n', OutputFileName);
 %     xlswrite([OutputFileName '_significant.xls'], ContinuousTitles          ,2,'A1:F1');
 %     xlswrite([OutputFileName '_significant.xls'], filteredContTable         ,2,'A2');
 %     xlswrite([OutputFileName '_significant.xls'], FiltContFeatureNames      ,2,'B2');
