@@ -3,3 +3,5 @@
 *_discrete_*.csv
 /Data/Cancer/
 /Data/CancerRNAseq/
+*.asv
+*.fig
