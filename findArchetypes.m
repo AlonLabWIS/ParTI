@@ -114,7 +114,16 @@ if exist('ForceNArchetypes','var') && ~isempty(ForceNArchetypes)
     fprintf('Warning! ForceNArchetypes preset in workspace to %d. Will now use that value.\n', ForceNArchetypes);
     NArchetypes=ForceNArchetypes;
 else
-    NArchetypes=input('please indicate the desired number of archetypes: ');
+    if dim > 2
+        SuggNArchetypes = DimensionFinder(TotESV1) + 1;
+        NArchetypes=input(['Elbow method suggests ' num2str(SuggNArchetypes) ...
+            ' archetypes.\nPlease indicate the desired number of archetypes (or press enter for using the suggestion): ']);
+        if isempty(NArchetypes)
+            NArchetypes =  SuggNArchetypes;
+        end
+    else
+        NArchetypes=input('Please indicate the desired number of archetypes: ');
+    end
 end
 
 if NArchetypes<3 && algNum >=3

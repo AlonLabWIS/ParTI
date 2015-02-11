@@ -13,6 +13,7 @@ for i = 1:length(ESVdat)
     y  =  s * x + inter2;
     di(i) = norm([x - i,y - ESVdat(i)]);
 end
+ 
 [~, dim] = max(di);
 end
 

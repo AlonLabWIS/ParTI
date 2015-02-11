@@ -25,10 +25,16 @@ contAttr = [];
 %    read_enriched_csv('Data/Synthetic/Synthetic_continuousTissueAnnotation.tsv', char(9));
 
 %% We are now ready to perform Pareto Task Inference (light version).
-% We use the SISAL algorithm (1), with up to 2 dimensions. We provide the
-% discrete attributes, and ask ParTI to preliminary booleanize these
-% attributes (0). We specify that the enrichment analysis will be performed 
-% with a bin size of 20%. Finally, the output of the the analysis will be 
-% stored in an Excel spreadsheet, under the name 'Synthetic_enrichmentAnalysis_*.csv'.
+% We use the SISAL algorithm (1), with up to 2 dimensions because the
+% dataset has only two dimensions. We provide the discrete attributes,
+% and ask ParTI to preliminary booleanize these attributes (0). We
+% specify that the enrichment analysis will be performed with a bin size
+% of 20%. Finally, the output of the the analysis will be stored in an
+% Excel spreadsheet, under the name 'Synthetic_enrichmentAnalysis_*.csv'.
+%
+% NOTE: If you use this script as a template to analyze more complex
+% datasets, remember to increase the dimension parameter (2 in this
+% example) so that you can observe the point at which the explained
+% variance curve saturates.
 [arc, arcOrig, pc] = ParTI_lite(data, 1, 2, discrAttrNames, ...
     discrAttr, 0, contAttrNames, contAttr, 0.2, 'Synthetic_enrichmentAnalysis');
