@@ -75,7 +75,7 @@ contAttrNames = regexprep(contAttrNames, '_', ' ');
 % Comma-Separated-Value text file, under the name 'Cancer_enrichmentAnalysis_*.csv'.
 
 [arc, arcOrig, pc] = ParTI_lite(geneExpression, 1, 8, discrAttrNames, ...
-    discrAttr, 0, contAttrNames, contAttr, 0.05, 'Cancer_enrichmentAnalysis');
+    discrAttr, 0, contAttrNames, contAttr, [], 0.05, 'Cancer_enrichmentAnalysis');
 
 %% Finally, we perform the compete analysis, including randomization
 % controls and archetype error estimation.

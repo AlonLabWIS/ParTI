@@ -47,77 +47,42 @@ function [arc, arcOrig, pc, errs, pval] = ParTI(DataPoints,algNum,dim,DiscFeatNa
 % estimated by bootstrapping
 % pval, a double variable - the p-value that the dataset is described by a simplex
 
-% Sisal is presented at Bioucas-Dias JM (2009) in First Workshop on Hyperspectral Image and Signal Processing: Evolution in Remote Sensing, 2009. WHISPERS �09, pp 1�4.
-% MVSA is presented at Li J, Bioucas-Dias JM (2008) in Geoscience and Remote Sensing Symposium, 2008. IGARSS 2008. IEEE International, pp III � 250�III � 253.
+% Sisal is presented at Bioucas-Dias JM (2009) in First Workshop on Hyperspectral Image and Signal Processing: Evolution in Remote Sensing, 2009. WHISPERS '09, pp 1-4.
+% MVSA is presented at Li J, Bioucas-Dias JM (2008) in Geoscience and Remote Sensing Symposium, 2008. IGARSS 2008. IEEE International, pp III.250 III.253.
 % SDVMM and MVES are taken from http://mx.nthu.edu.tw/~tsunghan/Source%20codes.html
 % PCHA is taken from http://www.mortenmorup.dk/index_files/Page327.htm
 
 if nargin<11
     OutputFileName='ParTIoutputFile';
-elseif nargin<10
-    OutputFileName='ParTIoutputFile';
+end
+if nargin<10
     binSize=0.05;
-elseif nargin<9
-    OutputFileName='ParTIoutputFile';
-    binSize=0.05;
+end
+if nargin<9
     GOcat2Genes=[];
-elseif nargin<8
-    OutputFileName='ParTIoutputFile';
-    binSize=0.05;
-    GOcat2Genes=[];
+end
+if nargin<8
     EnMatCont=[];
-elseif nargin<7
-    OutputFileName='ParTIoutputFile';
-    binSize=0.05;
-    GOcat2Genes=[];
-    EnMatCont=[];
+end
+if nargin<7
     ContFeatName=[];
-elseif nargin<6
-    OutputFileName='ParTIoutputFile';
-    binSize=0.05;
-    GOcat2Genes=[];
-    EnMatCont=[];
-    ContFeatName=[];
+end
+if nargin<6
     cols=[];
-elseif nargin<5
-    OutputFileName='ParTIoutputFile';
-    binSize=0.05;
-    GOcat2Genes=[];
-    EnMatCont=[];
-    ContFeatName=[];
-    cols=[];
+end
+if nargin<5
     EnMatDis=[];
-elseif nargin<4
-    OutputFileName='ParTIoutputFile';
-    binSize=0.05;
-    GOcat2Genes=[];
-    EnMatCont=[];
-    ContFeatName=[];
-    cols=[];
-    EnMatDis=[];
+end
+if nargin<4
     DiscFeatName=[];
-elseif nargin<3
-    OutputFileName='ParTIoutputFile';
-    binSize=0.05;
-    GOcat2Genes=[];
-    EnMatCont=[];
-    ContFeatName=[];
-    cols=[];
-    EnMatDis=[];
-    DiscFeatName=[];
+end
+if nargin<3
     dim=10; %Default dimension is set to 10
-elseif nargin<2
-    OutputFileName='ParTIoutputFile';
-    binSize=0.05;
-    GOcat2Genes=[];
-    EnMatCont=[];
-    ContFeatName=[];
-    cols=[];
-    EnMatDis=[];
-    DiscFeatName=[];
-    dim=10; %Default dimension is set to 10
+end
+if nargin<2
     algNum=1; %Default algorithm is Sisal (alg=1)
-else
+end
+if nargin<1
     error('Too few arguments in the input, define at least the data points')
 end
     

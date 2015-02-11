@@ -1,4 +1,4 @@
-function [arc, arcOrig, pc] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,binSize,OutputFileName)
+function [arc, arcOrig, pc] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,GOcat2Genes,binSize,OutputFileName)
 %% Inputs
 % 1. DataPoints, double matrix with the values of different traits 
 % (the coordinates, e.g. expression level of genes). Each sample is a row, 
@@ -27,9 +27,10 @@ function [arc, arcOrig, pc] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMa
 % 8. EnMatCont, a double matrix with each Continuous feature as a column, 
 % and each datapoint as a row. The rows of datapoints should match those in 
 % EnMatCont.
-% 9. binSize, a double variable ranging between 0-1, that is the fraction of the datapoints that should be grouped in a 
+% 9. GOcat2Genes, a parameter that is ignored by ParTI_lite(). See the documentation of ParTI().
+% 10. binSize, a double variable ranging between 0-1, that is the fraction of the datapoints that should be grouped in a 
 % single bin when calculating feature enrichments.
-% 10. OutputFileName, a string that represent the name of the comma or tab delimmited file that saves all enrichment
+% 11. OutputFileName, a string that represent the name of the comma or tab delimmited file that saves all enrichment
 % data. Several files will be created with different ending to specify the continuous enrichment, the discrete enrichment 
 % the significant enriched features and all the features. 
 %
@@ -40,10 +41,43 @@ function [arc, arcOrig, pc] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMa
 % by datapoints.
 % pc is a double matrix that saves the pc of the data
 
-% Sisal is presented at Bioucas-Dias JM (2009) in First Workshop on Hyperspectral Image and Signal Processing: Evolution in Remote Sensing, 2009. WHISPERS �09, pp 1�4.
-% MVSA is presented at Li J, Bioucas-Dias JM (2008) in Geoscience and Remote Sensing Symposium, 2008. IGARSS 2008. IEEE International, pp III � 250�III � 253.
+% Sisal is presented at Bioucas-Dias JM (2009) in First Workshop on Hyperspectral Image and Signal Processing: Evolution in Remote Sensing, 2009. WHISPERS '09, pp 1-4.
+% MVSA is presented at Li J, Bioucas-Dias JM (2008) in Geoscience and Remote Sensing Symposium, 2008. IGARSS 2008. IEEE International, pp III.250-III.253.
 % SDVMM and MVES are taken from http://mx.nthu.edu.tw/~tsunghan/Source%20codes.html
 % PCHA is taken from http://www.mortenmorup.dk/index_files/Page327.htm
+if nargin<11
+    OutputFileName='ParTIliteOutputFile';
+end
+if nargin<10
+    binSize=0.05;
+end
+if nargin<9
+    GOcat2Genes=[];
+end
+if nargin<8
+    EnMatCont=[];
+end
+if nargin<7
+    ContFeatName=[];
+end
+if nargin<6
+    cols=[];
+end
+if nargin<5
+    EnMatDis=[];
+end
+if nargin<4
+    DiscFeatName=[];
+end
+if nargin<3
+    dim=10; %Default dimension is set to 10
+end
+if nargin<2
+    algNum=1; %Default algorithm is Sisal (alg=1)
+end
+if nargin<1
+    error('Too few arguments in the input, define at least the data points')
+end
 
 
 DataPointsSize = size(DataPoints);

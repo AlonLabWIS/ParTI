@@ -74,7 +74,7 @@ contAttrNames = regexprep(contAttrNames, '_', ' ');
 % analysis will be stored in an Excel spreadsheet, under the name 
 % 'CancerRNAseq_enrichmentAnalysis_*.csv'.
 [arc, arcFinal, pc] = ParTI_lite(geneExpression, 1, 8, discrAttrNames, ...
-    discrAttr, 0, contAttrNames, contAttr, 0.05, 'CancerRNAseq_enrichmentAnalysis');
+    discrAttr, 0, contAttrNames, contAttr, [], 0.05, 'CancerRNAseq_enrichmentAnalysis');
 
 %% Finally, we perform the compete analysis, including randomization
 % controls and archetype error estimation.

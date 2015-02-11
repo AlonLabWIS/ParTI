@@ -61,7 +61,7 @@ contAttr = [contAttr, GOExpression];
 % Finally, the output of the the analysis will be stored in an Excel
 % spreadsheet, under the name 'Mouse_enrichmentAnalysis_*.csv'.
 [arc, arcOrig, pc] = ParTI_lite(geneExpression, 2, 8, discrAttrNames, ...
-     discrAttr, 0, contAttrNames, contAttr, 0.2, 'Mouse_enrichmentAnalysis');
+     discrAttr, 0, contAttrNames, contAttr, [], 0.2, 'Mouse_enrichmentAnalysis');
 
 %% Finally, we perform the compete analysis, including randomization
 % controls and archetype error estimation.

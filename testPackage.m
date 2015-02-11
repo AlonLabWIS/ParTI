@@ -21,7 +21,7 @@ for algNum = 1:5
         pause(2);
         try
             [arc, arcOrig] = ParTI_lite(data, algNum, 5, discrAttrNames, ...
-                discrAttr, 0, contAttrNames, contAttr, 0.2, 'Synthetic_enrichmentAnalysis');
+                discrAttr, 0, contAttrNames, contAttr, [], 0.2, 'Synthetic_enrichmentAnalysis');
         catch
             disp('Caught error message!');
         end
@@ -41,7 +41,7 @@ exampleMouse
 close all
 pause(2);
 [arc, arcFinal] = ParTI_lite(geneExpression, 2, 8, discrAttrNames, ...
-    discrAttr, 0, contAttrNames, contAttr, 0.2, 'Mouse_enrichmentAnalysis');
+    discrAttr, 0, contAttrNames, contAttr, [], 0.2, 'Mouse_enrichmentAnalysis');
 
 %% Cancer data
 clear all
@@ -52,11 +52,11 @@ global ForceNArchetypes; ForceNArchetypes = 4;
 global lowIterations; lowIterations = 1;
 exampleCancer
 
-%% also try in ParTI_lite
+%% also try in ParTI_lite, without specifying all parameters, just to check
 close all
 pause(2);
 [arc, arcFinal] = ParTI_lite(geneExpression, 1, 8, discrAttrNames, ...
-    discrAttr, 0, contAttrNames, contAttr, 0.05, 'Cancer_enrichmentAnalysis');
+    discrAttr, 0, contAttrNames, contAttr);
 
 %% Cancer RNAseq data
 clear all
@@ -71,4 +71,4 @@ exampleCancerRNAseq
 close all
 pause(2);
 [arc, arcFinal] = ParTI_lite(geneExpression, 1, 8, discrAttrNames, ...
-    discrAttr, 0, contAttrNames, contAttr, 0.05, 'CancerRNAseq_enrichmentAnalysis');
+    discrAttr, 0, contAttrNames, contAttr, [], 0.05, 'CancerRNAseq_enrichmentAnalysis');

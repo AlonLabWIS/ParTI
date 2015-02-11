@@ -37,4 +37,4 @@ contAttr = [];
 % example) so that you can observe the point at which the explained
 % variance curve saturates.
 [arc, arcOrig, pc] = ParTI_lite(data, 1, 2, discrAttrNames, ...
-    discrAttr, 0, contAttrNames, contAttr, 0.2, 'Synthetic_enrichmentAnalysis');
+    discrAttr, 0, contAttrNames, contAttr, [], 0.2, 'Synthetic_enrichmentAnalysis');
