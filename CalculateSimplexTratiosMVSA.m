@@ -21,6 +21,9 @@ minRandArchRatio=zeros(maxRuns,1);
 VolConvRand=zeros(1,maxRuns); % This will hold the volume of the convex hull
 
 for m=1:maxRuns
+    if mod(m,round(maxRuns/10)) == 0
+        fprintf('%.0f%% done\n', 100*m/maxRuns);
+    end
 %     if mod(m,10)==0
 %         disp(m);
 %     end

@@ -19,6 +19,9 @@ minArchsTot=cell(1,maxRuns); %The archeypes found per all datasets
 minRandArchVol=zeros(1,maxRuns); % The volume of each simplex found
 
 for k=1:maxRuns
+    if mod(k,round(maxRuns/10)) == 0
+        fprintf('%.0f%% done\n', 100*k/maxRuns);
+    end
     %Initialization of arrays that contain the archetypes and their volume
     minArchs=cell(1,numIter);
     VolArch1=zeros(1,numIter);
