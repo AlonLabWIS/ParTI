@@ -232,30 +232,52 @@ if maxRuns > 0
 	if NArchetypes < 3
 	    meanClstErrs(:,2) = zeros(size(meanClstErrs,1),1);
 	    if NArchetypes < 2
-	        meanClstErrs(:,1) = zeros(size(meanClstErrs,1),1);;
+	        meanClstErrs(:,1) = zeros(size(meanClstErrs,1),1);
 	    end
-	end
-	El1=zeros(1,NArchetypes);
-	El2=zeros(1,NArchetypes);
-	phi=zeros(1,NArchetypes);
-	Coeff2d = cell(1,NArchetypes);
-	RotEllipsoidArch = cell(1,NArchetypes);
-	for l=1:NArchetypes
-	    clusteredArchsError=ArchsErrorsMat(clusteredArchsErrorInd==l,:);
+    end
+    archReordering = zeros(1,NArchetypes);
+    for l=1:NArchetypes
+        clusteredArchsError=ArchsErrorsMat(clusteredArchsErrorInd==l,:);
 	    if NArchetypes < 3
 	        clusteredArchsError(l,2) = 0;
 	        if NArchetypes < 2
 	            clusteredArchsError(l,1) = 0;
 	        end
 	    end
+   	    meanClstErrs(l,:)=mean(clusteredArchsError);
+        repArchCoord = repmat(meanClstErrs(l,:), NArchetypes, 1);
+        [~,archReordering(l)] = min(sum((repArchCoord - ArchsMin').^2,2));
+    end
+    
+    if length(unique(archReordering)) < NArchetypes
+        archReordering = 1:NArchetypes;
+        disp('Warning: could not align archetypes. Archetype order is random and will change if you rerun ParTI again.');
+    end
+    %[~,archReordering]=sort(archReordering);
+    %[archReordering(clusteredArchsErrorInd)',clusteredArchsErrorInd]
+    clusteredArchsErrorIndAligned = archReordering(clusteredArchsErrorInd)';
+    
+	El1=zeros(1,NArchetypes);
+	El2=zeros(1,NArchetypes);
+	phi=zeros(1,NArchetypes);
+	Coeff2d = cell(1,NArchetypes);
+	RotEllipsoidArch = cell(1,NArchetypes);
+	for l=1:NArchetypes
+        clusteredArchsError=ArchsErrorsMat(clusteredArchsErrorIndAligned==l,:);
+	    if NArchetypes < 3
+	        clusteredArchsError(l,2) = 0;
+	        if NArchetypes < 2
+	            clusteredArchsError(l,1) = 0;
+	        end
+	    end
+   	    meanClstErrs(l,:)=mean(clusteredArchsError);
+        
 	    % remove the mean of each column - move the errors to zero
-	    meanClstErrs(l,:)=mean(clusteredArchsError);
 	    clstArchErrMeanless=bsxfun(@minus,clusteredArchsError(:,1:DimFig),meanClstErrs(l,1:DimFig));
 	    % calculating the axes of the principal components
 	    [Coeff2d{l},~,loadings2d]=princomp(clstArchErrMeanless(:,1:2));
 	    El1(l) = loadings2d(1)^(1/2);
 	    El2(l) = loadings2d(2)^(1/2);
-	    
 	    
 	    if DimFig >= 3
 	        [Coeff,~,loadings]=princomp(clstArchErrMeanless);
@@ -281,7 +303,7 @@ if maxRuns > 0
 	%vol = abs(det(bsxfun(@minus,meanClstErrs(1:end-1,:),meanClstErrs(end,:)))...
 	%    /factorial(NArchetypes-1));
 	for l=1:NArchetypes
-	    clusteredArchsError=ArchsErrorsMat(clusteredArchsErrorInd==l,:);
+	    clusteredArchsError=ArchsErrorsMat(clusteredArchsErrorIndAligned==l,:);
 	    if NArchetypes < 3
 	        clusteredArchsError(l,2) = 0;
 	        if NArchetypes < 2
