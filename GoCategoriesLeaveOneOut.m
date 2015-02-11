@@ -31,7 +31,7 @@ a=zeros(1,length(GOidx));
 indGOlen = length(indGO);
 for idx=1:indGOlen
     i = indGO(idx);
-    if mod(i,round(indGOlen/10)) == 0
+    if mod(idx,round(indGOlen/10)) == 0
         fprintf('%.0f%% done\n', 100*idx/indGOlen);
     end
 

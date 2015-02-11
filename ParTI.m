@@ -52,7 +52,75 @@ function [arc, arcOrig, pc, errs, pval] = ParTI(DataPoints,algNum,dim,DiscFeatNa
 % SDVMM and MVES are taken from http://mx.nthu.edu.tw/~tsunghan/Source%20codes.html
 % PCHA is taken from http://www.mortenmorup.dk/index_files/Page327.htm
 
-
+if nargin<11
+    OutputFileName='ParTIoutputFile';
+elseif nargin<10
+    OutputFileName='ParTIoutputFile';
+    binSize=0.05;
+elseif nargin<9
+    OutputFileName='ParTIoutputFile';
+    binSize=0.05;
+    GOcat2Genes=[];
+elseif nargin<8
+    OutputFileName='ParTIoutputFile';
+    binSize=0.05;
+    GOcat2Genes=[];
+    EnMatCont=[];
+elseif nargin<7
+    OutputFileName='ParTIoutputFile';
+    binSize=0.05;
+    GOcat2Genes=[];
+    EnMatCont=[];
+    ContFeatName=[];
+elseif nargin<6
+    OutputFileName='ParTIoutputFile';
+    binSize=0.05;
+    GOcat2Genes=[];
+    EnMatCont=[];
+    ContFeatName=[];
+    cols=[];
+elseif nargin<5
+    OutputFileName='ParTIoutputFile';
+    binSize=0.05;
+    GOcat2Genes=[];
+    EnMatCont=[];
+    ContFeatName=[];
+    cols=[];
+    EnMatDis=[];
+elseif nargin<4
+    OutputFileName='ParTIoutputFile';
+    binSize=0.05;
+    GOcat2Genes=[];
+    EnMatCont=[];
+    ContFeatName=[];
+    cols=[];
+    EnMatDis=[];
+    DiscFeatName=[];
+elseif nargin<3
+    OutputFileName='ParTIoutputFile';
+    binSize=0.05;
+    GOcat2Genes=[];
+    EnMatCont=[];
+    ContFeatName=[];
+    cols=[];
+    EnMatDis=[];
+    DiscFeatName=[];
+    dim=10; %Default dimension is set to 10
+elseif nargin<2
+    OutputFileName='ParTIoutputFile';
+    binSize=0.05;
+    GOcat2Genes=[];
+    EnMatCont=[];
+    ContFeatName=[];
+    cols=[];
+    EnMatDis=[];
+    DiscFeatName=[];
+    dim=10; %Default dimension is set to 10
+    algNum=1; %Default algorithm is Sisal (alg=1)
+else
+    error('Too few arguments in the input, define at least the data points')
+end
+    
 DataPointsSize = size(DataPoints);
 %The following makes prevents the user from specifying more dimensions than
 %the dataset has (Jean)
