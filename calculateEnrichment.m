@@ -131,7 +131,7 @@ end
 if sum(~isnan(continuousTable)) > 0
 
     ContinuousTitles = { 'archetype #','Feature Name', 'P value (Mann-Whitney)'...
-        ,'Median Difference' ,'Mean Difference','Significant after Benjamini-Hochberg correction?','Is first bin maixmal?'}; 
+        ,'Median Difference' ,'Mean Difference','Significant after Benjamini-Hochberg correction?','Is first bin maximal?'}; 
     ordContTable = sortrows(continuousTable,[1 -6 -7 -4]);
     ordContFeatureNames = ContFeatName(ordContTable(:,2))';
     
