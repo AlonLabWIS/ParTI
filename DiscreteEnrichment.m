@@ -88,33 +88,38 @@ table =  [repmat((1:Numarchs)',numFeatures,1),... %arch number
    subRows = 4; 
    subCols = 4;
    numFeatPerPlot = subRows*subCols;
+   %at most 10 figures   
+   maxNumOfPlot = 10; 
+   
    featuresToDraw = unique( table( (table(:,4)> 0) ,2));
    numOfPlot = ceil(length(featuresToDraw)/numFeatPerPlot);
-   
-   for fig = 1:numOfPlot
-       %    for feat = 1:numFeatures
-       figure;
-       for subp = ((fig-1)*numFeatPerPlot+1):min(fig*numFeatPerPlot,length(featuresToDraw))
+   if numOfPlot < maxNumOfPlot
+    for fig = 1:numOfPlot
+        %    for feat = 1:numFeatures
+        figure;
+        for subp = ((fig-1)*numFeatPerPlot+1):min(fig*numFeatPerPlot,length(featuresToDraw))
 %            subplot(subRows,subCols,mod(subp,numFeatPerPlot)+1);
             subplot(subRows,subCols,mod(subp-1,numFeatPerPlot)+1);
 
-           hold on
-           leg = cell(1,Numarchs);
-           for ar = 1:Numarchs
-               plot(bins,PoverQ{ar}(:,featuresToDraw(subp)),style{mod(ar,14)},'LineWidth',2);
-               title(sprintf('feature: %s',DiscFeatName{featuresToDraw(subp)}),'FontWeight','bold');
-               leg{ar} = ['archetype:', num2str(ar)];
-           end
-           xlabel('bin # / number of bins');ylabel('enrichment');
-           hold off
-       end
-       legend(leg);
-       set(gcf,'units','normalized','outerposition',[0, 0 , 1, 1]);
-       figname = [OutputFileName,num2str(fig + 4),'_discrete_enrichment_',num2str(fig)]; 
-       if exist('savefig')
-           savefig(figname);
-       end
+            hold on
+            leg = cell(1,Numarchs);
+            for ar = 1:Numarchs
+                plot(bins,PoverQ{ar}(:,featuresToDraw(subp)),style{mod(ar,14)},'LineWidth',2);
+                title(sprintf('feature: %s',DiscFeatName{featuresToDraw(subp)}),'FontWeight','bold');
+                leg{ar} = ['archetype:', num2str(ar)];
+            end
+            xlabel('bin # / number of bins');ylabel('enrichment');
+            hold off
+        end
+        legend(leg);
+        set(gcf,'units','normalized','outerposition',[0, 0 , 1, 1]);
+        figname = [OutputFileName,num2str(fig + 4),'_discrete_enrichment_',num2str(fig)]; 
+        if exist('savefig')
+            savefig(figname);
+        end
+    end
+   else
+       fprintf('Skipping enrichment plots because showing them would open %.0f figures.\n', numOfPlot);
    end
-   
 
 

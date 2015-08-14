@@ -51,7 +51,7 @@ fprintf('Starting to perform PCA, for big data on slow computers this may take a
 if exist('princomp') == 0
     error('This package requires the princomp() function from the Matlab Statistical Toolbox. Please install the Matlab Statistical Toolbox or provide an implementation of the princomp() function.');
 end
-[coefs1,scores1,variances] = princomp(DataPoints);
+[coefs1,scores1,variances] = princomp(DataPoints,'econ');
 percent_explained = 100*cumsum(variances)/sum(variances);
 
 figure;

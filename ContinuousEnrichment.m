@@ -26,7 +26,7 @@ breakPoints = floor(linspace(0.5, numDataPoints + 0.5, numOfBins+1));
 numPointInBin = diff(breakPoints);
 breakPoints = breakPoints(2:end);
 %%
-pval    = zeros(Numarchs,numFeatures);
+pval    = ones(Numarchs,numFeatures);
 medianDifference  = zeros(Numarchs,numFeatures);
 meanDifference  = zeros(Numarchs,numFeatures);
 PoverQ  = zeros(Numarchs,numFeatures);
@@ -38,9 +38,9 @@ for arch = 1:Numarchs
    Binned = mat2cell(tempEnrich,numPointInBin, numFeatures);
    
    %EnPQ 
-   P = cellfun(@(x)median(x),Binned,'UniformOutput',0);
-   [~, Q] = max(cell2mat(P));
-   PoverQ(arch,:) = (Q ==1) ;
+   P = cellfun(@(x)nanmedian(x),Binned,'UniformOutput',0);
+   [~, Q] = nanmax(cell2mat(P));
+   PoverQ(arch,:) = (Q == 1) ;
   
    tempEnrich =  EnMatCont(DataPointsInd(arch,:),:);
    %Divide to bins
@@ -48,12 +48,13 @@ for arch = 1:Numarchs
    rest = tempEnrich((numPointInBin(1)+1):numDataPoints,:);
 
    %EnGen - calculate p-val by mann-whitney test for each feature 
-   % Pval of first bin Vs. all data    
-   pval(arch,:) = arrayfun(@(x) ranksum(bin(:,x),rest(:,x)),1:numFeatures); 
+   % Pval of first bin Vs. all data
+   toCheck = find(sum(~isnan(bin)) > 0 & sum(~isnan(rest)) > 0);
+   pval(arch,toCheck) = arrayfun(@(x) nanranksum(bin(:,x),rest(:,x)), toCheck); 
             
    %EnPQ - Calculate median  diferences
-   medianDifference(arch,:) = (median(bin)-median(rest));%./(mean([(median(bin));(median(rest))])+10^-6);
-   meanDifference(arch,:) = (mean(bin)-mean(rest));%./(mean([(mean(bin));(mean(rest))])+10^-6);
+   medianDifference(arch,:) = (nanmedian(bin)-nanmedian(rest));%./(mean([(median(bin));(median(rest))])+10^-6);
+   meanDifference(arch,:) = (nanmean(bin)-nanmean(rest));%./(mean([(mean(bin));(mean(rest))])+10^-6);
 end
 %FDR
 isSignificantAfterFDR = mafdr(pval(:),'BHFDR',true)<=ThreshHoldBH; 

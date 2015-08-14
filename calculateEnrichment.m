@@ -97,7 +97,7 @@ end
 
 % Create tables of enrichment in excel (sheet1-Discrete, sheet2-Continuous)
 %Discrete
-if sum(~isnan(discreteTable)) > 0 
+if size(discreteTable,2) >= 3 && sum(~isnan(discreteTable(:,3))) > 0 
 	if evalPmax
 		DiscreteTitles = {'archetype #', 'Feature Name',  'P value (Hypergeom.)',...
 	        'Significant after Benjamini-Hochberg correction?','P maximal'};
@@ -128,7 +128,7 @@ if sum(~isnan(discreteTable)) > 0
 end
 
 %Continuous
-if sum(~isnan(continuousTable)) > 0
+if size(continuousTable,2) >= 3 && sum(~isnan(continuousTable(:,3))) > 0
 
     ContinuousTitles = { 'archetype #','Feature Name', 'P value (Mann-Whitney)'...
         ,'Median Difference' ,'Mean Difference','Significant after Benjamini-Hochberg correction?','Is first bin maximal?'}; 

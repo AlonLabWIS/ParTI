@@ -22,7 +22,7 @@ function [arc, arcOrig, pc] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMa
 % array of strings and transform it into a boolean matrix.   
 % 6. cols, The integer index of the columns of EnMatDis to booleanize, in case
 % EnMatDis is a string cell array rather than a boolean matrix. To booleanize all
-% columns, set to 0.
+% columns, set to 0. To booleanize no columns, set to -1.
 % 7. ContFeatName, a cell array of strings listing the Continuous Feature labels.
 % 8. EnMatCont, a double matrix with each Continuous feature as a column, 
 % and each datapoint as a row. The rows of datapoints should match those in 
