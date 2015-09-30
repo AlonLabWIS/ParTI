@@ -15,7 +15,7 @@ hist(reshape(geneExpression, 1, numel(geneExpression)),30);
 [f,x] = ecdf(reshape(geneExpression, 1, numel(geneExpression))); plot(x,f);
 clear f x;
 minExpr = 2;
-%minExpr = 8;
+minExpr = 8;
 selGenes = find(mean(geneExpression,1) > minExpr);
 geneExpression = geneExpression(:,selGenes);
 geneNames = geneNames(selGenes,:);
@@ -83,14 +83,15 @@ cd ../ParTI
 global ForceNArchetypes; ForceNArchetypes = 4;
 
 %% Clinical features
-ParTI_lite(geneExpression, 1, ForceNArchetypes-1, discrAttrNames, ...
+close all
+ParTI_lite(geneExpression, 1, ForceNArchetypes, discrAttrNames, ...
     discrAttr, 0, contAttrNames, contAttr, [], 0.1, ...
     strcat(origPath, '/clinicalEnrichment'));
 
 %% MSigDB gene groups
 clear discrAttr contAttr;
-
-ParTI_lite(geneExpression, 1, ForceNArchetypes-1, [], [], ...
+close all
+ParTI_lite(geneExpression, 1, ForceNArchetypes, [], [], ...
     0, GONames, GOExpression, [], 0.1, ...
     strcat(origPath, '/MSigDBenrichment'));
 
@@ -109,7 +110,8 @@ mutNames = importdata(strcat(origPath, '/mutMatrix_reOrdered_booleanized_geneNam
 %mut = mut(:,toKeep);
 %mutNames = mutNames(toKeep,:);
 
-ParTI_lite(geneExpression, 1, ForceNArchetypes-1, mutNames, ...
+close all
+ParTI_lite(geneExpression, 1, ForceNArchetypes, mutNames, ...
     mut, -1, [], [], [], 0.1, ...
     strcat(origPath, '/mutEnrichment'));
 
@@ -132,13 +134,15 @@ copNames = importdata(strcat(origPath, '/copMatrix_reOrdered_booleanized_geneNam
 % cop = cop(:,toKeep);
 % copNames = copNames(toKeep,:);
 
-ParTI_lite(geneExpression, 1, ForceNArchetypes-1, copNames, cop, ...
+close all
+ParTI_lite(geneExpression, 1, ForceNArchetypes, copNames, cop, ...
     0, [], [], [], 0.1, ...
     strcat(origPath, '/cnvEnrichment'));
 
 
 %% Finally, we perform the compete analysis, including randomization
 % controls and archetype error estimation.
+close all
 [arc, arcOrig, pc] = ParTI(geneExpression);
 
 %[arc, arcOrig, pc, errs, pval] = ParTI(geneExpression, 1, 8, discrAttrNames, ...
