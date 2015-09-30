@@ -63,14 +63,22 @@ fieldSel=\'3-`echo $nClinical + 1 | bc`\'
 ./add1missingField.pl < $clinicalFile > tmp2.tsv
 leftJoin.pl tmp.list tmp2.tsv 1 1 $fieldSel NaN > clinicalData_reOrdered.tsv
 
-libreoffice --calc clinicalData_reOrdered.tsv
+cp -v clinicalData_reOrdered.tsv discreteClinicalData_reOrdered.tsv
+libreoffice --calc discreteClinicalData_reOrdered.tsv
+gedit continuousFeatures.list
 
-echo "We just opened 'clinicalData_reOrdered.tsv' for you. Save discrete features as 'discreteClinicalData_reOrdered.tsv', and the *names* of continuous features as 'continuousFeatures.list'. Then press [ENTER]."
+echo "We just opened 'discreteClinicalData_reOrdered.tsv' for you. Save only discrete features in this file, and the *names* of continuous features as 'continuousFeatures.list'. Then press [ENTER]."
 read
+
+# We'll convert tabs to newlines automatically so we don't have to do it by hand for each cancer 
+tr '\t' '\n' < continuousFeatures.list > tmp.list
+mv tmp.list continuousFeatures.list
 
 ./extractContinuousFeatures.pl
 tail -n +2 continuousClinicalData_reOrdered.tsv | sed -e 's/\t/,/g' > continuousClinicalData_reOrdered_justData.csv
 head -n 1 continuousClinicalData_reOrdered.tsv | sed -e 's/\t/\n/g' > continuousClinicalData_reOrdered_featNames.list
 
+# Now just take a quick look at the sample types we have in the dataset
+R CMD BATCH ../ParTI/TCGAscripts/tabPlotSampleType.R
 
 echo "Done. Ready to process dataset in matlab"
