@@ -30,6 +30,7 @@ function [DataPCA,meanClstErrs,realArchs,ArchsErrors,PvalueRatio]=findArchetypes
 
 addpath(genpath(pwd)); %Add all subfolders of the current directory to run all the diff. algorithms
 global ForceNArchetypes;
+global abortAfterPval;
 
 % Initialize the parameters
 if nargin<2
@@ -210,7 +211,11 @@ if maxRuns > 0
 	end
 
 	fprintf('The significance of %d archetypes has p-value of: %2.5f \n',NArchetypes,PvalueRatio);
-
+    
+    if exist('abortAfterPval','var') && ~isempty(abortAfterPval)
+        exit;
+    end
+    
 	%% Calculate errors in archetypes (by bootstrapping)
     fprintf('Now calculating errors on the archetypes.\n');
     switch algNum
