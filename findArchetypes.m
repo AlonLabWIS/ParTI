@@ -31,6 +31,7 @@ function [DataPCA,meanClstErrs,realArchs,ArchsErrors,PvalueRatio]=findArchetypes
 addpath(genpath(pwd)); %Add all subfolders of the current directory to run all the diff. algorithms
 global ForceNArchetypes;
 global abortAfterPval;
+PvalueRatio = [];
 
 % Initialize the parameters
 if nargin<2
@@ -211,11 +212,9 @@ if maxRuns > 0
 	end
 
 	fprintf('The significance of %d archetypes has p-value of: %2.5f \n',NArchetypes,PvalueRatio);
-    
-    if exist('abortAfterPval','var') && ~isempty(abortAfterPval)
-        exit;
-    end
-    
+end
+
+if maxRuns > 0 && ~(exist('abortAfterPval','var') && ~isempty(abortAfterPval))
 	%% Calculate errors in archetypes (by bootstrapping)
     fprintf('Now calculating errors on the archetypes.\n');
     switch algNum
@@ -336,7 +335,7 @@ else
 	meanlessTemp = meanClstErrs*(coefs1(:,1:NArchetypes-1)');
 	realArchs = bsxfun(@plus,meanlessTemp,mean(DataPoints));
 	ArchsErrors = [];
-	PvalueRatio = [];
+	%PvalueRatio = [];
     % At this point, we have all we need to return for the 'lite' version of this function
     
     %We'll just compute 'dot' sizes for the archetypes and we're done:
@@ -387,7 +386,8 @@ plot(DataPCA(:,1),DataPCA(:,2),'.k');
 hold on;
 % plot the archetypes in 2d
 for arcCol = 1:NArchetypes
-	if maxRuns > 0 %Only show errors if we actually asked to compute them
+	if maxRuns > 0 && ~(exist('abortAfterPval','var') && ~isempty(abortAfterPval))
+        %Only show errors if we actually asked to compute them
 	    ellipse(meanClstErrs(arcCol,1),meanClstErrs(arcCol,2),El1(arcCol),...
 	        El2(arcCol),Coeff2d{arcCol},styleel{mod(arcCol-1,14)+1});
 	else
