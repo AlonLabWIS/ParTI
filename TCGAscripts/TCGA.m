@@ -1,6 +1,7 @@
 %% ParTI pipeline for TCGA datasetson
 addpath ../ParTI/
 origPath = pwd;
+myQuantile = .1;
 
 % Load the data into Matlab from a comma separated value (CSV) file
 % The file is a purely numerical matrix, with patients as rows and genes as
@@ -9,32 +10,6 @@ geneExpression = dlmread('expMatrix.csv', ',');
 % The file is formated as samples (i.e. patients) x genes. 
 % We load gene names.
 geneNames = importdata('geneListExp.list');
-
-%% Select genes
-hist(reshape(geneExpression, 1, numel(geneExpression)),30);
-[f,x] = ecdf(reshape(geneExpression, 1, numel(geneExpression))); plot(x,f);
-clear f x;
-minExpr = 2;
-minExpr = 8;
-selGenes = find(mean(geneExpression,1) > minExpr);
-geneExpression = geneExpression(:,selGenes);
-geneNames = geneNames(selGenes,:);
-
-%% We import the sample attributes, i.e. the clinical data on patients
-% These come in two kinds: 
-% - discrete attributes, i.e. categorical data (citizenship, gender, cancer progression grade, ...)
-% - continuous attributes, i.e. numerical data (weight, age, tumor volume, ...)
-% We start by loading discrete attributes.
-[discrAttrNames, discrAttr] = ...
-    read_enriched_csv('discreteClinicalData_reOrdered.tsv', char(9));
-%where discrAttr is a matrix of 2106 patients x 25 attributes. The names of
-%the attributes are stored in discrAttrNames.
-
-%Load continuous features
-%[contAttrNames, contAttr] = ...
-%   read_enriched_csv('continuousClinicalData_reOrdered.tsv', char(9));
-contAttr = dlmread('continuousClinicalData_reOrdered_justData.csv', ',');
-contAttrNames = importdata('continuousClinicalData_reOrdered_featNames.list');
 
 %% We expand the sample attributes by computing changes in GO category expression
 % This section is optional. It makes it possible to determine broad gene 
@@ -58,6 +33,36 @@ contAttrNames = importdata('continuousClinicalData_reOrdered_featNames.list');
 %contAttrNames = [contAttrNames, GONames];
 %contAttr = [contAttr, GOExpression];
 
+%% Select genes
+% hist(reshape(geneExpression, 1, numel(geneExpression)),30);
+% [f,x] = ecdf(reshape(geneExpression, 1, numel(geneExpression))); plot(x,f);
+% clear f x;
+% minExpr = 2;
+% minExpr = 8;
+% selGenes = find(mean(geneExpression,1) > minExpr);
+% geneExpression = geneExpression(:,selGenes);
+
+minExpr = quantile(mean(geneExpression,1), myQuantile);
+selGenes = find(mean(geneExpression,1) > minExpr);
+geneExpression = geneExpression(:,selGenes);
+geneNames = geneNames(selGenes,:);
+
+
+%% We import the sample attributes, i.e. the clinical data on patients
+% These come in two kinds: 
+% - discrete attributes, i.e. categorical data (citizenship, gender, cancer progression grade, ...)
+% - continuous attributes, i.e. numerical data (weight, age, tumor volume, ...)
+% We start by loading discrete attributes.
+[discrAttrNames, discrAttr] = ...
+    read_enriched_csv('discreteClinicalData_reOrdered.tsv', char(9));
+%where discrAttr is a matrix of 2106 patients x 25 attributes. The names of
+%the attributes are stored in discrAttrNames.
+
+%Load continuous features
+%[contAttrNames, contAttr] = ...
+%   read_enriched_csv('continuousClinicalData_reOrdered.tsv', char(9));
+contAttr = dlmread('continuousClinicalData_reOrdered_justData.csv', ',');
+contAttrNames = importdata('continuousClinicalData_reOrdered_featNames.list');
 
 %% Finally, we substitute underscores '_' in variable names with spaces ' ' 
 % to prevent the characters following underscores from appearing in indice
@@ -80,7 +85,7 @@ cd ../ParTI
 [arc, arcOrig, pc] = ParTI_lite(geneExpression);
 
 %% Fill in number of desired archetypes
-global ForceNArchetypes; ForceNArchetypes = 4;
+global ForceNArchetypes; ForceNArchetypes = 3;
 
 %% Clinical features
 close all
@@ -142,8 +147,8 @@ ParTI_lite(geneExpression, 1, ForceNArchetypes, copNames, cop, ...
 
 %% Finally, we perform the compete analysis, including randomization
 % controls and archetype error estimation.
-close all
-[arc, arcOrig, pc] = ParTI(geneExpression);
+% close all
+% [arc, arcOrig, pc] = ParTI(geneExpression);
 
 %[arc, arcOrig, pc, errs, pval] = ParTI(geneExpression, 1, 8, discrAttrNames, ...
 %    discrAttr, 0, GONames, GOExpression, GOcat2Genes, 0.1, ...
