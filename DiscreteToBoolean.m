@@ -16,11 +16,13 @@ if nargin == 2
     cols = 1:size(enriched,2);
 end
  enr = enriched(:,cols);
- clear enriched; %try to free some space. Could help when working with large matrices
+ clear enriched; %free some memory. Could help when working with large matrices
  lab = labels(cols);
  featName = {};
  boolMat = [];
 for index = 1:size(enr,2)
+    %uncomment to find the feature that's causing trouble
+    %fprintf('i = %d\n', index); 
     u = unique(enr(:,index));
     for subind = 1:length(u)    
         temp = ([lab{index},': ',u{subind}]);
