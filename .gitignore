@@ -7,3 +7,4 @@
 *.fig
 *.svg
 *.pdf
+.Rhistory
