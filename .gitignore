@@ -5,3 +5,5 @@
 /Data/CancerRNAseq/
 *.asv
 *.fig
+*.svg
+*.pdf
