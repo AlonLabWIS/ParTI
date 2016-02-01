@@ -1,7 +1,10 @@
 %% ParTI pipeline for TCGA datasetson
 addpath ../ParTI/
 origPath = pwd;
-myQuantile = .4;
+% myQuantile = .4;
+% nArchetypes = 4;
+
+global ForceNArchetypes; ForceNArchetypes = nArchetypes;
 
 % Load the data into Matlab from a comma separated value (CSV) file
 % The file is a purely numerical matrix, with patients as rows and genes as
@@ -36,19 +39,10 @@ geneNames = importdata('geneListExp.list');
 
 
 %% Select genes
-% hist(reshape(geneExpression, 1, numel(geneExpression)),30);
-% [f,x] = ecdf(reshape(geneExpression, 1, numel(geneExpression))); plot(x,f);
-% clear f x;
-% minExpr = 2;
-% minExpr = 8;
-% selGenes = find(mean(geneExpression,1) > minExpr);
-% geneExpression = geneExpression(:,selGenes);
-
 minExpr = quantile(mean(geneExpression,1), myQuantile);
 selGenes = find(mean(geneExpression,1) > minExpr);
 geneExpression = geneExpression(:,selGenes);
 geneNames = geneNames(selGenes,:);
-
 
 %% We import the sample attributes, i.e. the clinical data on patients
 % These come in two kinds: 
@@ -74,7 +68,8 @@ contAttrNames = regexprep(contAttrNames, '_', ' ');
 GONames = regexprep(GONames, '_', ' ');
 
 %% Remove normal tissues
-% noNormal = find(strcmp(discrAttr(:,130), 'Solid Tissue Normal') == 0);
+% featIdx = find(strcmp(discrAttrNames, 'sample_type'));
+% noNormal = find(strcmp(discrAttr(:,featIdx), 'Solid Tissue Normal') == 0);
 % geneExpression = geneExpression(noNormal,:);
 
 %% We are now ready to perform Pareto Task Inference.
@@ -89,9 +84,6 @@ GONames = regexprep(GONames, '_', ' ');
 
 cd ../ParTI
 [arc, arcOrig, ~] = ParTI_lite(geneExpression);
-
-%% Fill in number of desired archetypes
-global ForceNArchetypes; ForceNArchetypes = 5;
 
 %% Clinical features
 close all
@@ -118,15 +110,6 @@ posMut = find(cellfun('length', regexp(mutNames, '=1$')') > 0);
                 {'MSigDB/c2.cp.v4.0.symbols.gmt', 'MSigDB/c5.all.v4.0.symbols.gmt'}, ...
                 5);
 
-% tmp = reshape(mut, 1, numel(mut));
-% tmp = tmp(tmp>0);
-% hist(tmp,30);
-
-%Keep only mutations that occure in at least 1% of samples
-%toKeep = find(nansum(mut) > .01*size(mut,1));
-%mut = mut(:,toKeep);
-%mutNames = mutNames(toKeep,:);
-
 close all
 ParTI_lite(geneExpression, 1, ForceNArchetypes, mutNames, ...
     mut, -1, [], [], [], 0.1, ...
@@ -143,19 +126,6 @@ clear mut mutNames pc;
 
 cop = dlmread(strcat(origPath, '/copMatrix_reOrdered_booleanized_justData.csv'), ',');
 copNames = importdata(strcat(origPath, '/copMatrix_reOrdered_booleanized_geneNames.list'));
-
-% cols = num2cell(cop, 1);
-% Ss = cellfun(@copEntropy,cols);
-% clear cols;
-% hist(Ss);
-% [f,x] = ecdf(Ss); plot(x,f);
-% %Keep only the 1% highest entropy genes
-% [~,sortIdx] = sort(Ss);
-% sortIdx = fliplr(sortIdx);
-% toKeep = sortIdx(1:round(.01*length(Ss)));
-% 
-% cop = cop(:,toKeep);
-% copNames = copNames(toKeep,:);
 
 close all
 ParTI_lite(geneExpression, 1, ForceNArchetypes, copNames, cop, ...

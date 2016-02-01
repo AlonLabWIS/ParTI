@@ -70,6 +70,11 @@ gedit continuousFeatures.list
 echo "We just opened 'discreteClinicalData_reOrdered.tsv' for you. Save only discrete features in this file, and the *names* of continuous features as 'continuousFeatures.list'. Then press [ENTER]."
 read
 
+# Post-process discrete features to collapse features with multiple entries for a single patient
+./collapseMultipleModalities.pl < discreteClinicalData_reOrdered.tsv > tmp.tsv
+./add1missingField.pl < tmp.tsv > discreteClinicalData_reOrdered.tsv
+# mv tmp.tsv discreteClinicalData_reOrdered.tsv
+
 # We'll convert tabs to newlines automatically so we don't have to do it by hand for each cancer 
 tr '\t' '\n' < continuousFeatures.list > tmp.list
 mv tmp.list continuousFeatures.list

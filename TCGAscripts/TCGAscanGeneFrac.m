@@ -18,7 +18,8 @@ geneExpression = dlmread('expMatrix.csv', ',');
 % We load gene names.
 % geneNames = importdata('geneListExp.list');
 
-cd ../ParTI
+[discrAttrNames, discrAttr] = ...
+    read_enriched_csv('discreteClinicalData_reOrdered.tsv', char(9));
 
 %% Select genes
 % hist(reshape(geneExpression, 1, numel(geneExpression)),30);
@@ -38,7 +39,13 @@ global ForceNArchetypes; ForceNArchetypes = nArchetypes;
 global abortAfterPval; abortAfterPval = 1;
 % global lowIterations; lowIterations = 1;
 
+%% Remove normal tissues
+featIdx = find(strcmp(discrAttrNames, 'sample_type'));
+noNormal = find(strcmp(discrAttr(:,featIdx), 'Solid Tissue Normal') == 0);
+geneExpression = geneExpression(noNormal,:);
+
 %% Finally, we perform the compete analysis, including randomization
 % controls and archetype error estimation.
 % close all
+cd ../ParTI
 [arc, arcOrig, pc, errs, pval] = ParTI(geneExpression);

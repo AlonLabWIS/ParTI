@@ -9,6 +9,7 @@ my $nArchetypesMax = 5; # How many archetypes to look for
 my $fracStep = 0.1; # Step size in the fraction of top expressed genes
 		  # we'll consider
 my $queue = "alon"; # new-all.q or alon
+my $tag = "";
 my $doSub = 0;
 my $verbose = 0;
 my $help = 0;
@@ -19,6 +20,7 @@ GetOptions("verbose!" => \$verbose,
 	   "nArchetypesMax|x=i"  => \$nArchetypesMax,
 	   "fracStep|f=f"  => \$fracStep,
 	   "queue|q=s" => \$queue,
+	   "tag|t=s" => \$tag,
 	   "sub!" => \$doSub,
 	   "help|?"  => \$help,
 	   man => \$man) or pod2usage(2);
@@ -35,6 +37,12 @@ for ( my $nArch = $nArchetypesMin;
 	# my $outFile = sprintf("%s.out", $jobName);
 	my $bOutFile = sprintf("%s.bOut", $jobName);
 	my $bErrFile = sprintf("%s.bErr", $jobName);
+
+	# print STDERR "Testing $bOutFile\n";
+	if ( -e $bOutFile ) {
+		print STDERR "Skipping $jobName because $bOutFile already exists.\n";
+		next;
+	}
 	
 	open F, "<../ParTI/TCGAscripts/TCGAscanGeneFrac.m";
 	open G, ">".$mFile;
@@ -49,14 +57,14 @@ for ( my $nArch = $nArchetypesMin;
 	open G, ">".$bFile;
 	print G "#BSUB -q $queue"."\n";
 	print G "#BSUB -J $jobName"."\n";
-	print G '#BSUB -R "select[mem>1000] rusage[mem=1000]"'."\n";
+	print G '#BSUB -R "select[mem>1200] rusage[mem=1200]"'."\n";
 	print G "#BSUB -o $bOutFile"."\n";
 	print G "#BSUB -e $bErrFile"."\n";
 	# print G "module load matlab/R2012a"."\n";
 	print G "hostname"."\n";
 	print G "date"."\n";
 	# print G sprintf("/opt/MATLAB/R2012a/bin/matlab -nojvm -nodisplay < %s", $mFile)."\n";
-	print G sprintf("matlab -nojvm -nodisplay < %s", $mFile)."\n";
+	print G sprintf("matlab -nodesktop -nodisplay < %s", $mFile)."\n";
 	print G "date"."\n";	
 	close G;
 
