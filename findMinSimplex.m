@@ -24,6 +24,7 @@ minArchsIter=cell(1,3*numIter);
 VolArch=zeros(1,3*numIter);
 DataDim=size(DataPCA,2);
 
+%% Jean> I feel like this section was already implemented in findArchetypes.m
 %We need to figure out how to generalize volumes to non-simplical polytopes
 %before we allow running PCHA with NArchetypes>DataDim+1
 %if (algNum~=5)
@@ -37,6 +38,7 @@ DataDim=size(DataPCA,2);
         DataPCA=[DataPCA, ones(size(DataPCA,1),1)]; %embedding the data in a D+1 space
     end
 %end
+%% End
 
 switch algNum
     case 1 %    algNum=1 :> Sisal (default)

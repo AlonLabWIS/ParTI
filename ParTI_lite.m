@@ -1,4 +1,4 @@
-function [arc, arcOrig, pc] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,GOcat2Genes,binSize,OutputFileName)
+function [arc, arcOrig, pc] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,GOcat2Genes,binSize,OutputFileName,arcOrig)
 %% Inputs
 % 1. DataPoints, double matrix with the values of different traits 
 % (the coordinates, e.g. expression level of genes). Each sample is a row, 
@@ -33,6 +33,9 @@ function [arc, arcOrig, pc] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMa
 % 11. OutputFileName, a string that represent the name of the comma or tab delimmited file that saves all enrichment
 % data. Several files will be created with different ending to specify the continuous enrichment, the discrete enrichment 
 % the significant enriched features and all the features. 
+% 12. arcOrig, a matrix of archetypes x traits. If this matrix is given,
+% archetypes won't be computed and this matrix will be used instead. This
+% allows to keep the ordering of archetypes when repeatingly running ParTI.
 %
 % Output:
 % arc, a double matrix of the coordinates of the archetypes in the space spanned by the
@@ -45,6 +48,9 @@ function [arc, arcOrig, pc] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMa
 % MVSA is presented at Li J, Bioucas-Dias JM (2008) in Geoscience and Remote Sensing Symposium, 2008. IGARSS 2008. IEEE International, pp III.250-III.253.
 % SDVMM and MVES are taken from http://mx.nthu.edu.tw/~tsunghan/Source%20codes.html
 % PCHA is taken from http://www.mortenmorup.dk/index_files/Page327.htm
+if nargin<12
+    arcOrig=[];
+end
 if nargin<11
     OutputFileName='ParTIliteOutputFile';
 end
@@ -107,9 +113,24 @@ if exist('lowIterations', 'var') && ~isempty(lowIterations)
     fprintf('Warning! lowIterations flag set: will only run numIter = %d\n', numIter);
 end
 
-[pc, arc, arcOrig] = findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns);
+if size(arcOrig,1) == 0
+    [pc, arc, arcOrig] = findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns);
+else
+    %We allow passing archetypes so that indexing can stay constant from
+    %run to run
+    fprintf('Will use archetypes passed as argument instead of determining them from scratch.\n');
+    [coefs1,pc] = princomp(DataPoints,'econ');
+    nArch = size(arcOrig,1);
+    trArcOrig = bsxfun(@minus,arcOrig,mean(DataPoints));
+    
+    arc = trArcOrig * coefs1(:,1:(nArch-1));
+end
 
-calculateEnrichment(pc(:,1:size(arc,2)),arc,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName,[],[],[],[],maxRuns);
+if size(EnMatDis,1) > 0 || size(EnMatCont, 1) > 0
+    calculateEnrichment(pc(:,1:size(arc,2)),arc,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName,[],[],[],[],maxRuns);
+else
+    fprintf('Skipping enrichment analysis as no features were provided.\n');
+end
 
 end
 

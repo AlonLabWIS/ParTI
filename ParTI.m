@@ -87,7 +87,7 @@ if nargin<1
 end
     
 DataPointsSize = size(DataPoints);
-%The following makes prevents the user from specifying more dimensions than
+%The following prevents the user from specifying more dimensions than
 %the dataset has (Jean)
 if ( DataPointsSize(2) < dim )
     dim = DataPointsSize(2);

@@ -1,16 +1,22 @@
 function [GOmatrix,GOfullNames,nGenesPerGO,GOcat2Genes]=MakeGOMatrix(DataPoints,GeneNames,MSigDBFiles,minGenes)
+% This function transforms a matrix of samples x genes matrix to an
+% samples x MSigDB matrix, for use in continuous enrichment analysis.
+% In the resulting matrix, each column represent an MSigDB category, and
+% expression values represent the average expression of genes belonging to
+% that MSigDB category.
+% 
 % Arguments
 %  DataPoints: samples x genes
 %  GeneNames: a list of IDs that are known in MSigDB, in the same order as
 %             the columns of DataPoints
-%  MSigDBFiles: a list in MSigDB format
-%  minGenes: only consider GO categories with at least minGenes genes
+%  MSigDBFiles: a list of files mapping MSigDB categories to genes names, in MSigDB format
+%  minGenes: only consider MSigDB categories with at least minGenes genes
 %
 % Output
 %  GOmatrix: transformed matrix, samples x GO categories
-%  GOfullNames: the names of the GO categories (= columns of GOmatrix)
+%  GOfullNames: the names of the MSigDB categories (= columns of GOmatrix)
 %  nGenesPerGO: how many genes we averaged on (= columns of GOmatrix)
-%  GOcat2Genes: a genes x GO categories matrix indicating, for each GO 
+%  GOcat2Genes: a genes x MSigDB categories matrix indicating, for each MSigDB 
 %               category which genes are part of this go category
 
 %% Initialize
