@@ -13,7 +13,7 @@ function [discreteTitles,discreteEnData] =  read_enriched_csv(fileName,delimiter
   discreteEn = discreteEn(1:line_ind-1);  
   for i = 1:line_ind-1              
     data = textscan(discreteEn{i},'%s',...  
-                        'Delimiter',delimiter,'BufSize',16393);
+                        'Delimiter',delimiter);
     data = data{1};              
     if strcmp(discreteEn{i}(end),delimiter) 
       data{end+1} = '';                    
