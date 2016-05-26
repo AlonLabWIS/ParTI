@@ -4,6 +4,7 @@ clinicalFile=`ls ./TCGA_*_exp_*/clinical_data`
 expFile=`ls ./TCGA_*_exp_*/genomicMatrix`
 mutFile=`ls ./TCGA_*_mutation*/genomicMatrix`
 copFile=`ls ./TCGA_*_gistic2thd*/genomicMatrix`
+drugFile=`ls ./Clinical/Biotab/*_clinical_drug*`
 
 ./expMatrix2tsv.pl -e $expFile -g geneListExp.list -t expMatrix.tsv -verbose
 cut -f 1 expMatrix.tsv > patientIDs.list
@@ -56,6 +57,11 @@ leftJoin.pl tmp.list copMatrix.tsv 1 1 $fieldSel NaN > copMatrix_reOrdered.tsv
 ./booleanizeDiscMatrix.pl -in copMatrix_reOrdered.tsv -e 10 -verbose -o copMatrix_reOrdered_booleanized.tsv
 tail -n +2 copMatrix_reOrdered_booleanized.tsv | cut -f 2- | sed -e 's/\t/,/g' > copMatrix_reOrdered_booleanized_justData.csv
 head -n 1 copMatrix_reOrdered_booleanized.tsv | cut -f 2- | sed -e 's/\t/\n/g' > copMatrix_reOrdered_booleanized_geneNames.list
+
+# Drug data
+ln -s $drugFile drugFile.txt
+
+# Radiation data
 
 # Clinical data
 nClinical=`head -1 $clinicalFile | sed -e 's/[^\t]//g' | wc -c`

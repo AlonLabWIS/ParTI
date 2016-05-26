@@ -72,6 +72,9 @@ for (i in 1:length(labs)) {
                 )
     }
 }
+
+write.csv(MSumMat, file="MSumMat.csv")
+          
 ## heatmap(MSumMat, scale="none", margins=c(5, 30))
 dim(unique(MSumMat))
 MSumMat0 <- MSumMat;
