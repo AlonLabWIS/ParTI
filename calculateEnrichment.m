@@ -69,7 +69,7 @@ continuousTable = ContinuousEnrichment(orderedIndices,EnMatCont,binSize);
 disp('Finished computing continuous enrichments.');
 
 %calculate the significance after a leave-1-out procedure
-if ~isnan(continuousTable) & evalPmax
+if ~isnan(continuousTable) & evalPmax & length(ContFeatName) > 0
     disp('Now applying leave-one-out to verify robustness enrichment of GO categories');
     NArchetypes=size(Archetypes,1);
     
