@@ -5,6 +5,7 @@ expFile=`ls ./TCGA_*_exp_*/genomicMatrix`
 mutFile=`ls ./TCGA_*_mutation*/genomicMatrix`
 copFile=`ls ./TCGA_*_gistic2thd*/genomicMatrix`
 drugFile=`ls ./Clinical/Biotab/*_clinical_drug*`
+radiationFile=`ls ./Clinical/Biotab/*_clinical_radiation*`
 
 ./expMatrix2tsv.pl -e $expFile -g geneListExp.list -t expMatrix.tsv -verbose
 cut -f 1 expMatrix.tsv > patientIDs.list
@@ -58,10 +59,6 @@ leftJoin.pl tmp.list copMatrix.tsv 1 1 $fieldSel NaN > copMatrix_reOrdered.tsv
 tail -n +2 copMatrix_reOrdered_booleanized.tsv | cut -f 2- | sed -e 's/\t/,/g' > copMatrix_reOrdered_booleanized_justData.csv
 head -n 1 copMatrix_reOrdered_booleanized.tsv | cut -f 2- | sed -e 's/\t/\n/g' > copMatrix_reOrdered_booleanized_geneNames.list
 
-# Drug data
-ln -s $drugFile drugFile.txt
-
-# Radiation data
 
 # Clinical data
 nClinical=`head -1 $clinicalFile | sed -e 's/[^\t]//g' | wc -c`
@@ -78,7 +75,7 @@ read
 
 # Post-process discrete features to collapse features with multiple entries for a single patient
 ./collapseMultipleModalities.pl < discreteClinicalData_reOrdered.tsv > tmp.tsv
-./add1missingField.pl < tmp.tsv > discreteClinicalData_reOrdered.tsv
+./add1missingField.pl < tmp.tsv > discreteClinicalData_reOrdered_withoutTreatment.tsv
 # mv tmp.tsv discreteClinicalData_reOrdered.tsv
 
 # We'll convert tabs to newlines automatically so we don't have to do it by hand for each cancer 
@@ -88,6 +85,16 @@ mv tmp.list continuousFeatures.list
 ./extractContinuousFeatures.pl
 tail -n +2 continuousClinicalData_reOrdered.tsv | sed -e 's/\t/,/g' > continuousClinicalData_reOrdered_justData.csv
 head -n 1 continuousClinicalData_reOrdered.tsv | sed -e 's/\t/\n/g' > continuousClinicalData_reOrdered_featNames.list
+
+# Finally, let's extend the discrete clinical data with treatment info
+# Drug data
+ln -s $drugFile drugFile.txt
+# Radiation data
+ln -s $radiationFile radiationFile.txt
+# Clean them up and make the treatment table
+R --no-save < cleanUpDrugs.R
+
+cp discreteClinicalData_reOrdered_withTreatment.tab discreteClinicalData_reOrdered.tab
 
 # Now just take a quick look at the sample types we have in the dataset
 R CMD BATCH ../ParTI/TCGAscripts/tabPlotSampleType.R
