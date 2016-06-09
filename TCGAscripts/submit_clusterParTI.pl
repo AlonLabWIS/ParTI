@@ -57,7 +57,7 @@ foreach my $project (sort keys %projectFrac) {
     open G, ">".$project.'_UCSC/'.$bFile;
     print G "#BSUB -q $queue"."\n";
     print G "#BSUB -J $jobName"."\n";
-    print G '#BSUB -R "select[mem>1000] rusage[mem=1000]"'."\n";
+    print G '#BSUB -R "select[mem>2000] rusage[mem=2000]"'."\n";
     print G "#BSUB -o $bOutFile"."\n";
     print G "#BSUB -e $bErrFile"."\n";
     # print G "module load matlab/R2012a"."\n";

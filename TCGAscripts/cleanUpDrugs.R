@@ -160,14 +160,14 @@ daysTo <-
     })
 dev.off();
 
-plot(
-    unlist(sapply(daysTo,
-                  function(x) {
-                      x["treat_started_days_to"] })),
-    unlist(sapply(daysTo,
-                  function(x) { x["collection_days_to"] })),
-    xlab="days to treatment start", ylab="days to collection")
-abline(0,1)
+## plot(
+##     unlist(sapply(daysTo,
+##                   function(x) {
+##                       x["treat_started_days_to"] })),
+##     unlist(sapply(daysTo,
+##                   function(x) { x["collection_days_to"] })),
+##     xlab="days to treatment start", ylab="days to collection")
+## abline(0,1)
 
 drugDic <- read.csv("../drugDictionnary.csv", as.is=T);
 head(drugDic)
@@ -181,8 +181,10 @@ drugLists <-
             gsub("/", "+",
                  gsub(" and ", "+",
                       gsub(", ", "+",
-                           gsub(" \\(.*\\)$", "",
-                                drugs[,"pharmaceutical_therapy_drug_name"])
+                           gsub(", and ", ", ",
+                                gsub(" \\(.*\\)$", "",
+                                     drugs[,"pharmaceutical_therapy_drug_name"])
+                                )
                            )
                       ),
                  fixed=T)
@@ -370,6 +372,9 @@ treatReordered <-
                }
            }))
 
+colnames(treatReordered) <- colnames(treatTab)[-1]
+head(treatReordered)
+
 ## treatReordered <- as.data.frame(treatReordered)
 ## head(treatReordered)
 ## treatReordered[1:80,1]
@@ -381,9 +386,10 @@ write.table(treatReordered, file="treatments_reOrdered.tab",
             sep="\t", quote=F)
 
 discreteFeats <-
-    read.table("discreteClinicalData_reOrdered.tsv",
+    read.table("discreteClinicalData_reOrdered_withoutTreatment.tsv",
                h=T, as.is=T, sep="\t")
 
+colnames(treatReordered) <- sprintf("treat.%s", colnames(treatReordered))
 discTreat <- cbind(discreteFeats, treatReordered)
 isNormal <- discTreat[,"sample_type"] == "Solid Tissue Normal";
 
@@ -394,5 +400,5 @@ isNormal <- discTreat[,"sample_type"] == "Solid Tissue Normal";
 discTreat[isNormal,ncol(discreteFeats)+seq(1,ncol(treatReordered))] <- NA;
 
 write.table(discTreat,
-            file="discreteClinicalData_reOrdered_withTreatment.tab",
-            sep="\t", quote=F)
+            file="discreteClinicalData_reOrdered_withTreatment.tsv",
+            sep="\t", quote=F, row.names=F)

@@ -2,7 +2,7 @@
 addpath ../ParTI/
 origPath = pwd;
 % myQuantile = .4;
-% nArchetypes = 4;
+% nArchetypes = 5;
 
 global ForceNArchetypes; ForceNArchetypes = nArchetypes;
 

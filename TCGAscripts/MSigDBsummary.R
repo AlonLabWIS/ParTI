@@ -2,18 +2,20 @@ rm(list=ls())
 
 myFiles <-
     c("LUAD_UCSC/MSigDBenrichment_continuous_significant.csv",
-      ## "SKCM_UCSC/MSigDBenrichment_continuous_significant.csv",
       ## "UCEC_UCSC/MSigDBenrichment_continuous_significant.csv",
       "BRCA_UCSC/MSigDBenrichment_continuous_significant.csv",
       ## "KIRC_UCSC/MSigDBenrichment_continuous_significant.csv",
       ## "LUSC_UCSC/MSigDBenrichment_continuous_significant.csv",
-      ## "PRAD_UCSC/MSigDBenrichment_continuous_significant.csv",
       "COAD_UCSC/MSigDBenrichment_continuous_significant.csv",
       "GBM_UCSC/MSigDBenrichment_continuous_significant.csv",
       "LGG_UCSC/MSigDBenrichment_continuous_significant.csv",
-      ## "THCA_UCSC/MSigDBenrichment_continuous_significant.csv",
       "BLCA_UCSC/MSigDBenrichment_continuous_significant.csv",
-      "LIHC_UCSC/MSigDBenrichment_continuous_significant.csv");
+      "LIHC_UCSC/MSigDBenrichment_continuous_significant.csv",
+      
+      "PRAD_UCSC/MSigDBenrichment_continuous_significant.csv",
+      "SKCM_UCSC/MSigDBenrichment_continuous_significant.csv",
+      "THCA_UCSC/MSigDBenrichment_continuous_significant.csv"
+      );
       
 
 labs <- gsub("_UCSC.*$", "", myFiles)
@@ -81,15 +83,17 @@ MSumMat0 <- MSumMat;
 rownames(MSumMat0) <- c();
 pdf("MSumMat.pdf", height=15, width=10)
 ## heatmap(unique(MSumMat0), scale="none", margins=c(1, 30))
-h <- heatmap(MSumMat0, scale="none", margins=c(5, 5), keep.dendro=T)
+h <- heatmap(MSumMat0, scale="none", margins=c(5, 5), keep.dendro=T,
+             hclustfun = function(x) { hclust(x, method="ward.D") })
 dev.off();
 
 myClusters <- list(
     h$Rowv[[2]][[2]][[2]],
     h$Rowv[[2]][[2]][[1]],
-    h$Rowv[[2]][[1]],
-    h$Rowv[[1]][[1]],
-    h$Rowv[[1]][[2]]);
+    h$Rowv[[2]][[1]][[2]],
+    h$Rowv[[2]][[1]][[1]],
+    h$Rowv[[1]][[2]],
+    h$Rowv[[1]][[1]]);
 
 getLeaves <- function(y) {
     unlist(dendrapply(y, function(x) {
@@ -99,18 +103,25 @@ getLeaves <- function(y) {
 }
 
 ## A: misc, among which cell adhesion
+## A: growth signalling, cell ahesion
 rownames(MSumMat)[getLeaves(myClusters[[1]])] 
 ## B: synapses & neurons, differentiation, MTOR signaling
+## B: synapses & neurons, vaso-contriction / smooth muscles, 
 rownames(MSumMat)[getLeaves(myClusters[[2]])]
 ## C: immune response, regulation of apoptosis, transcription, DNA
 ## damage checkpoint, degradation of ECM
+## C: immune system, apoptosis
 rownames(MSumMat)[getLeaves(myClusters[[3]])]
 ## D1: gene expression (transcription & translation), DNA repair,
 ## mitosis
+## D: transcription
 rownames(MSumMat)[getLeaves(myClusters[[4]])]
 ## D2: lipoprotein biosynthesis, respiration, regulation of mitosis,
 ## ribosome & translation, tRNAs, WNT signaling, DNA synthesis
+## E: translation, RNA processing, DNA repair
 rownames(MSumMat)[getLeaves(myClusters[[5]])]
+## F: autophagy, glycolysis, lipid synthesis & transport / protein secretion
+rownames(MSumMat)[getLeaves(myClusters[[6]])]
 
 
 
@@ -125,9 +136,10 @@ pdf("MSumMatCOA.pdf", height=4, width=6);
 s.label(dudi1$co);
 dev.off();
 dudi1$co[order(dudi1$co[,1]),]
+
 dudi1$li[order(dudi1$li[,1]),]
 ## Axis 1: mitosis & gene expression (-) vs differentiation (+)
-dudi1$li[order(dudi1$li[,2]),2]
+dudi1$li[order(dudi1$li[,2]),]
 ## Axis 2: TGF beta signaling (-) vs protein synthesis & metabolism (+)
 dudi1$li[order(dudi1$li[,3]),]
 ## Axis 3: Pol II (-) vs Pol I (+); mainly there to explain BRCA.1 (LumB)

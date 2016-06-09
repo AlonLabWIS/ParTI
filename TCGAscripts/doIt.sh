@@ -94,7 +94,7 @@ ln -s $radiationFile radiationFile.txt
 # Clean them up and make the treatment table
 R --no-save < cleanUpDrugs.R
 
-cp discreteClinicalData_reOrdered_withTreatment.tab discreteClinicalData_reOrdered.tab
+cp discreteClinicalData_reOrdered_withTreatment.tsv discreteClinicalData_reOrdered.tsv
 
 # Now just take a quick look at the sample types we have in the dataset
 R CMD BATCH ../ParTI/TCGAscripts/tabPlotSampleType.R
