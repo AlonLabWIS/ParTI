@@ -12,6 +12,13 @@ drugs[,"pharmaceutical_tx_started_days_to"] <-
 drugs[,"pharmaceutical_tx_ended_days_to"] <-
     as.numeric(drugs[,"pharmaceutical_tx_ended_days_to"])
 
+h <- hist(drugs[,"pharmaceutical_tx_ended_days_to"] -
+          drugs[,"pharmaceutical_tx_started_days_to"], 20,
+          xlab="treatment duration [d]", main="")
+## Mode treatment duration
+typicalTreatDuration <- h$mids[which.max(h$counts)]
+abline(v=typicalTreatDuration, lty=2)
+
 ## Let's read in the days to collection information, so we can look
 ## up the most relevant treatment outcome and drugs?
 clinicalData <- read.table("clinicalData_reOrdered.tsv", sep="\t",
@@ -213,6 +220,8 @@ sort(table(splitDrugs[sapply(stdDrugs, length) == 0]))
 ## vector of all drugs given
 
 patient <- unique(drugs[,"bcr_patient_barcode"])[3]
+## patient <- unique(drugs[drugs[,"pharmaceutical_tx_started_days_to"] < typicalTreatDuration,"bcr_patient_barcode"])[3]
+
 ## We iterate through all patients
 patientDrugs <- 
     sapply(unique(drugs[,"bcr_patient_barcode"]), function(patient) {
@@ -281,6 +290,27 @@ head(resMat)
 sort(apply(resMat, 1, sum)) #most common therapies
 ## as.logical(resMat)
 
+##################################################
+## Summarize by drug target
+
+drugTargets <- read.csv("../drugTargets.csv", as.is=T)
+drugTargets[is.na(drugTargets)] <- 0
+
+d <- "radiotherapy"
+alnDrugTargets <-
+    sapply(rownames(resMat), function(d) {
+        sel <- drugTargets[,1] == d;
+        if ( sum(sel) != 1 ) { cat(sprintf("Trouble with %s\n", d)) }
+        return(as.numeric(drugTargets[sel,c(-1, -2)]))
+    })
+
+rownames(alnDrugTargets) <-
+    gsub("^", "target.", colnames(drugTargets)[c(-1,-2)])
+resMatS <- alnDrugTargets %*% resMat
+resMatS[resMatS > 1] <- 1
+
+resMatF <- rbind(resMat, resMatS)
+
 ## Is looks as if the best therapy outcome is reported for each
 ## individual treatment but is actually the same within each
 ## patient. Let's confirm by comparing the radiotherapy best treatment
@@ -340,16 +370,16 @@ drugTab <-
                 ## unlist(patientDrugs[3,])
                 )
             ),
-        data.frame(colnames(resMat),
-                   t(resMat)), by=1)
+        data.frame(colnames(resMatF),
+                   t(resMatF)), by=1)
 write.csv(drugTab, file="drugTab.csv", row.names=F)
 
 treatTab <-
     merge(
         data.frame(names(patientBestResp),
                    patientBestResp),
-        data.frame(colnames(resMat),
-                   t(resMat)),
+        data.frame(colnames(resMatF),
+                   t(resMatF)),
         by=1, all.x=T)
 treatTab[,2] <- as.character(treatTab[,2])
 ## write.csv(treatTab, file="treatTab.csv", row.names=F)

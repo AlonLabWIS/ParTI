@@ -10,11 +10,11 @@ myFiles <-
       "GBM_UCSC/MSigDBenrichment_continuous_significant.csv",
       "LGG_UCSC/MSigDBenrichment_continuous_significant.csv",
       "BLCA_UCSC/MSigDBenrichment_continuous_significant.csv",
-      "LIHC_UCSC/MSigDBenrichment_continuous_significant.csv",
+      "LIHC_UCSC/MSigDBenrichment_continuous_significant.csv"
       
-      "PRAD_UCSC/MSigDBenrichment_continuous_significant.csv",
-      "SKCM_UCSC/MSigDBenrichment_continuous_significant.csv",
-      "THCA_UCSC/MSigDBenrichment_continuous_significant.csv"
+#      "PRAD_UCSC/MSigDBenrichment_continuous_significant.csv",
+#      "SKCM_UCSC/MSigDBenrichment_continuous_significant.csv",
+#      "THCA_UCSC/MSigDBenrichment_continuous_significant.csv"
       );
       
 

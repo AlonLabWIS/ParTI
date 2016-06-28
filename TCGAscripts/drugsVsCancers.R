@@ -1,32 +1,1231 @@
 rm(list=ls())
 
-cancerIDs <- read.table("TCGA_frac_nArchs.tab", as.is=T)[,1];
+library(fdrtool)
+library(gdata)
+library(gplots)
 
-cancerID <- cancerIDs[1]
-treatPerCancer <-
-    sapply(cancerIDs, function(cancerID) {
-        discrete <-
-            read.table(
-                sprintf("%s_UCSC/discreteClinicalData_reOrdered_withTreatment.tsv",
-                        cancerID), as.is=T, h=T, sep="\t")
-        justTreat <-
-            discrete[,grep("^treat.", colnames(discrete))]
-        apply(justTreat[,-1], 2, function(x) {
-            mean(x, na.rm=T) })
-    })
+## TCGAfracNarchs <- read.table("TCGA_frac_nArchs.tab", as.is=T, row.names=1)
+## colnames(TCGAfracNarchs) <- c("quantile", "nArchetypes");
+## cancerIDs <- rownames(TCGAfracNarchs);
 
-rownames(treatPerCancer) <- gsub("treat.", "", rownames(treatPerCancer))
+## cancerID <- cancerIDs[2]
+## cancerID <- "GBM"
+## treatPerCancer <-
+##     sapply(cancerIDs, function(cancerID) {
+##         discrete <-
+##             read.table(
+##                 sprintf("%s_UCSC/treatTab.tsv",
+##                         cancerID), as.is=T, h=T, sep="\t")[,c(-1, -2)]
+##         apply(discrete, 2, function(x) { mean(x, na.rm=T) })
+##     })
+
+## exprPerCancer <-
+##     sapply(cancerIDs, function(cancerID) {
+##         avgExpr <-
+##             read.table(
+##                 sprintf("%s_UCSC/avgExpr.tsv",
+##                         cancerID), as.is=T, h=F, sep="\t")[,1]
+##         geneList <-
+##             read.table(
+##                 sprintf("%s_UCSC/geneListExp.list",
+##                         cancerID), as.is=T, h=F, sep="\t")[,1]
+##         names(avgExpr) <- geneList;
+##         return(avgExpr)
+##     })
+
+## ## exprCancers <- 
+## ##     lapply(cancerIDs, function(cancerID) {
+## ##         cat(paste("Loading", cancerID, "expression\n"))
+## ##         geneList <-
+## ##             read.table(
+## ##                 sprintf("%s_UCSC/geneListExp.list",
+## ##                         cancerID), as.is=T, h=F, sep="\t")[,1]
+## ##         expr <- read.csv(sprintf("%s_UCSC/expMatrix.csv", cancerID),
+## ##                          as.is=T, h=F)
+## ##         colnames(expr) <- geneList;
+## ##         return(expr)
+## ##     })
+## ## names(exprCancers) <- cancerIDs
+## ## save(exprCancers, file="exprCancers.rda")
+## load("exprCancers.rda")
+## ## Load the synth data
+## cancerID <- "SYNT";
+## geneList <-
+##     read.table(
+##         sprintf("%s_UCSC/geneListExp.list",
+##                 cancerID), as.is=T, h=F, sep="\t")[,1]
+## expr <- read.csv(sprintf("%s_UCSC/expMatrix.csv", cancerID),
+##                  as.is=T, h=F)
+## colnames(expr) <- geneList;
+## exprCancers[[cancerID]] <- expr
+
+## ## archPerCancerList <-
+## ##     sapply(cancerIDs, function(cancerID) {
+## ##         arcsOrig <-
+## ##             t(read.table(
+## ##                 sprintf("%s_UCSC/arcsOrig_genes.tsv",
+## ##                         cancerID), as.is=T, h=F))
+## ##         geneList <-
+## ##             read.table(
+## ##                 sprintf("%s_UCSC/geneNamesAfterExprFiltering.list",
+## ##                         cancerID), as.is=T, h=F, sep="\t")[,1]
+## ##         rownames(arcsOrig) <- geneList;
+## ##         return(arcsOrig)
+## ##     })
+## ## save(archPerCancerList, file="archPerCancerList.rda")
+## load("archPerCancerList.rda")
+## ## Load synth data
+## arcsOrig <-
+##     t(read.table(
+##         sprintf("%s_UCSC/arcsOrig_genes.tsv",
+##                 cancerID), as.is=T, h=F))
+## geneList <-
+##     read.table(
+##         sprintf("%s_UCSC/geneNamesAfterExprFiltering.list",
+##                 cancerID), as.is=T, h=F, sep="\t")[,1]
+## rownames(arcsOrig) <- geneList;
+## archPerCancerList[[cancerID]] <- arcsOrig
+
+## ## Keep only genes that are present in all the archetypes
+## geneTab <- table(unlist(sapply(archPerCancerList, function(x) { rownames(x) })))
+## ## These genes are found in all archetypes of all cancer
+## ubiqGenes <- names(geneTab)[geneTab == length(cancerIDs)] 
+
+## alnArchs <-
+##     matrix(NA, length(ubiqGenes), 
+##            sum(sapply(archPerCancerList, function(a) { ncol(a) })));
+## rownames(alnArchs) <- ubiqGenes;
+## n <- 0;
+## for (i in 1:length(archPerCancerList)) {
+##     ## Normalize out abs gene expression inside each cancer
+##     ## archPerCancerList[[i]] <-
+##     ##     t(apply(archPerCancerList[[i]], 1, function(x) {x - mean(x)}))
+##     for (j in 1:ncol(archPerCancerList[[i]]) ) {
+##         n <- n + 1;
+##         alnArchs[,n] <- archPerCancerList[[i]][ubiqGenes,j]
+##     }
+## }
+
+## a <- names(archPerCancerList)[1]
+## colnames(alnArchs) <-
+##     unlist(sapply(names(archPerCancerList), function(a) {
+##         sprintf("%s.%d",
+##                 rep(a, ncol(archPerCancerList[[a]])),
+##                 1:ncol(archPerCancerList[[a]])
+##                 )
+##     }))
+
+## ## Compute optimal cut-off on patent response
+## respRanking <- c("Clinical Progressive Disease",
+##                  "Stable Disease", "Partial Response",
+##                  "Complete Response")
+
+## pdf("respCutOffs.pdf", height=3*4, width=4*4)
+## par(mfrow=c(3,4))
+## respCutOffs <-
+##     sapply(cancerIDs, function(cancerID) {
+##         cat(paste(cancerID,"\n"))
+        
+##         treatments <- 
+##             read.table(
+##                 sprintf("%s_UCSC/discreteClinicalData_reOrdered.tsv",
+##                         cancerID), as.is=T, h=T, sep="\t")
+##         treatments <- treatments[,c(which("treat.patientBestResp" == colnames(treatments)),
+##                                     grep("treat.target.", colnames(treatments)))]
+##         colnames(treatments) <- gsub("^treat.target.", "", colnames(treatments))
+##         colnames(treatments)[1] <- "best.resp";
+
+##         best.respVec <-
+##             sapply(treatments[,"best.resp"], function(x) {
+##                 if ( is.na(x) ) { return(NA) }
+##                 which(respRanking == x)
+##             })
+##         treatments[,"best.resp"] <- best.respVec;
+        
+##         bp <- barplot(table(as.numeric(best.respVec)), main=cancerID)
+##         respCutOff <- median(best.respVec, na.rm=T);
+##         respCutOff <- respCutOff +
+##             which.min(abs(c(sum(best.respVec < respCutOff - .5, na.rm=T) / sum(!is.na(best.respVec)),
+##                             sum(best.respVec < respCutOff + .5, na.rm=T) /
+##                             sum(!is.na(best.respVec))) - .5)) - 1.5
+##         ## if ( respCutOff == 1 ) {
+##         ##     respCutOff <- 1.5
+##         ## } else if ( respCutOff == 4 ) {
+##         ##     respCutOff <- 3.5
+##         ## }
+##         abline(v=(respCutOff - 1)/(nrow(bp)-1) * diff(range(bp)) + min(bp), lty=2)
+##         return(respCutOff)
+##     })
+## dev.off();
+
+## Done Init
+
+## save.image("drugVsCancers_init.rda")
+load("drugVsCancers_init.rda")
+
+##################################################
+
+drugTargets <- read.csv("drugTargets.csv", as.is=T)
+drugTargets[is.na(drugTargets)] <- 0
+head(drugTargets)
 
 dim(treatPerCancer)
 which(apply(treatPerCancer, 1, sum) == 0)
-treatPerCancer <- treatPerCancer[apply(treatPerCancer, 1, sum) > 0,
-                                 apply(treatPerCancer, 2, sum) > 0]
+treatPerCancer <- treatPerCancer[,apply(treatPerCancer, 2, sum) > 0]
 
-heatmap(log10(treatPerCancer), scale="none",
-        hclustfun=function(x) { hclust(x, method="ward.D") })
+library(gplots)
+heatmap.2(treatPerCancer, scale="none",
+          col = heat.colors(256),
+          hclustfun=function(x) { hclust(x, method="ward.D") })
+
+treatPerCancer0 <-
+    t(apply(treatPerCancer, 1, function(x) { (x - median(x)) / sd(x)
+                                         }))
+sdmd <- function(x) { mean(abs(x - median(x))) }
+sum(apply(treatPerCancer0, 1, sd) < 1e-10)
+library(gplots)
+heatmap.2(treatPerCancer0, scale="none",
+          col = heat.colors(256),
+          hclustfun=function(x) { hclust(x, method="ward.D") })
+
+treatPerCancer0["dabrafenib",]
+
+heatmap.2(log(treatPerCancer + 1), scale="none",
+          col = heat.colors(256),
+          hclustfun=function(x) { hclust(x, method="ward.D") })
+
+treatPerCancer0["radiotherapy",]
+
 
 hist(log10(apply(treatPerCancer, 1, mean)),
      xlab="log10 average usage frequency")
 isFrequent <- apply(treatPerCancer, 1, mean) > .01
 heatmap(treatPerCancer[isFrequent,], scale="none",
         hclustfun=function(x) { hclust(x, method="ward.D") })
+
+heatmap.2(treatPerCancer[isFrequent,], scale="none",
+          col = heat.colors(256),
+          hclustfun=function(x) { hclust(x, method="ward.D") })
+
+##################################################
+## Same analysis by mechanism
+
+d <- "radiotherapy"
+allTherapies <- rownames(treatPerCancer);
+allTherapies <- allTherapies[-grep("^target", allTherapies)]
+alnDrugTargets <-
+    sapply(allTherapies, function(d) {
+        sel <-
+            gsub("^([0-9])", "X\\1",
+                 gsub("[ -]", ".", drugTargets[,1])) == d;
+        if ( sum(sel) != 1 ) { cat(sprintf("Trouble with %s\n", d)) }
+        return(as.numeric(drugTargets[sel,c(-1, -2)]))
+    })
+
+treatPerCancerS <-
+    alnDrugTargets %*%
+    treatPerCancer[-grep("^target", rownames(treatPerCancer)),]
+rownames(treatPerCancerS) <- colnames(drugTargets)[c(-1,-2)]
+
+heatmap.2(treatPerCancerS, scale="none",
+          col = heat.colors(256), margins = c(5, 15),
+          hclustfun=function(x) { hclust(x, method="ward.D") })
+
+treatPerCancerS0 <-
+    t(apply(treatPerCancerS, 1,
+            function(x) { (x - median(x)) ## / sd(x)
+                      }))
+
+
+                          
+pdf("treatPerCancerS0.pdf", height=5, width=7.5);
+heatmap.2(treatPerCancerS0, scale="none",
+          col = heat.colors(256), margins = c(5, 15),
+          hclustfun=function(x) { hclust(x, method="ward.D") })
+dev.off()
+
+## Take out average gene expression to focus on changes between cancers
+exprPerCancer0 <- t(apply(exprPerCancer, 1, function(x) { x - mean(x) }))
+
+minExpr <- rev(sort(apply(exprPerCancer, 1, mean)))[100]
+sel <- apply(exprPerCancer, 1, mean) >= minExpr
+sel <- rev(order(apply(exprPerCancer, 1, sd)))[1:1000]
+topExprPerCancer <-
+    t(apply(exprPerCancer[sel,],
+          1, function(x) { x - mean(x) }))
+
+pdf("exprClustering.pdf", height=5, width=5);
+heatmap.2(topExprPerCancer)
+dev.off();
+
+##################################################
+
+pdf("distTreatExpr.pdf", height=8, width=8)
+par(mfrow=c(2,2))
+
+par(mfrow=c(2,2))
+dTreat <- as.matrix(dist(t(treatPerCancerS0)))
+dTreatN <- dTreat / median(dTreat)
+image(dTreatN, main="Treatments")
+
+dExpr <- as.matrix(dist(t(topExprPerCancer)))
+dExprN <- dExpr / median(dExpr)
+image(dExprN, main="Expression")
+
+## plot(dExprN, dTreatN)
+## cor.test(dExprN, dTreatN)
+
+rndTEPR <-
+    t(apply(topExprPerCancer, 1,
+            function(x) { sample(x) }))
+dRndTEPR <- as.matrix(dist(t(rndTEPR)))
+dRndTEPRN <- dRndTEPR / median(dExpr)
+image(dRndTEPRN, main="Random expr.")
+
+## Normalization factor should be the same as is Expression?
+
+rndDists <-
+    sapply(1:1000, function(i) {
+        rndTEPR <-
+            t(apply(topExprPerCancer, 1,
+                    function(x) { sample(x) }))
+        dRndTEPR <- as.matrix(dist(t(rndTEPR)))
+        dRndTEPRN <- dRndTEPR / median(dExpr)
+        sum((dTreatN - dRndTEPRN)^2)
+    })
+
+initDist <- sum((dTreatN - dExprN)^2)
+hist(rndDists, 20,
+     xlim=range(c(rndDists, initDist)),
+     xlab="distance between matrices")
+abline(v=initDist, lwd=2, col="red")
+
+dev.off();
+
+##################################################
+
+pdf("covTreatExpr.pdf", height=8, width=8)
+par(mfrow=c(2,2))
+
+tmp <- t(treatPerCancerS0) %*% treatPerCancerS0;
+tmp2 <- tmp / 
+    sqrt(as.matrix(apply(treatPerCancerS0^2, 2, sum)) %*%
+         t(as.matrix(apply(treatPerCancerS0^2, 2, sum))))
+image(tmp2, col = heat.colors(256), breaks=seq(-1, 1, len=257),
+      main="Treatments")
+
+image(cor(topExprPerCancer), col = heat.colors(256),
+      breaks=seq(-1, 1, len=257), main="Expression")
+
+rndTEPR <-
+    t(apply(topExprPerCancer, 1,
+            function(x) { sample(x) }))
+image(cor(rndTEPR), col = heat.colors(256),
+      breaks=seq(-1, 1, len=257), main="Expression")
+
+rndDists <-
+    sapply(1:1000, function(i) {
+        rndTEPR <-
+            t(apply(topExprPerCancer, 1,
+                    function(x) { sample(x) }))
+        sum((tmp2 - cor(rndTEPR))^2)
+    })
+
+initDist <- sum((tmp2 - cor(topExprPerCancer))^2)
+hist(rndDists, 20,
+     xlim=range(c(rndDists, initDist)),
+     xlab="distance between matrices")
+abline(v=initDist, lwd=2, col="red")
+dev.off();
+
+par(mfrow=c(1,2))
+plot(hclust(dist(t(exprPerCancer0)), method="ward.D"),
+     main="Expression")
+plot(hclust(dist(t(treatPerCancerS0)), method="ward.D"), main="Treatments")
+
+##################################################
+
+## Now study archetypes instead of cancers
+
+## Take out average gene expression to focus on changes between cancers
+sel <- rev(order(apply(alnArchs, 1, sd)))[1:1000]
+## sel <- 1:nrow(alnArchs)
+topExprArchs <-
+    t(apply(alnArchs[sel,], 1, function(x) { x - mean(x) }))
+
+pdf("topExprArchsClustering.pdf", height=7, width=7);
+## bitmap("topExprArchsClustering.png", height=10, width=10);
+heatmap.2(topExprArchs, scale = "none", trace="none", col=heat.colors)
+dev.off();
+
+image(as.matrix(dist(t(topExprArchs))))
+
+## Cluster using all genes, just dendrogram
+
+## Is the distance between cancer centroids large compared to the
+## distance between archetypes and their centroid?
+head(alnArchs[sel,])
+head(exprPerCancer[ubiqGenes,][sel,])
+archCentr <- alnArchs[sel,]
+archCentr <- cbind(alnArchs[sel,], exprPerCancer[ubiqGenes,][sel,])
+
+
+library(ade4)
+dudi1 <- dudi.pca(t(archCentr), scale=F, scannf=F, nf=3)
+barplot(dudi1$eig / sum(dudi1$eig))
+
+shapeVec <- c(rep(1, ncol(alnArchs)), rep(2, ncol(exprPerCancer)))
+colVec <- as.numeric(as.factor(gsub("\\.[0-9]$", "", colnames(archCentr))))
+
+pdf("archCentrPCA.pdf", height=6, width=6);
+plot(dudi1$li[,1:2],
+       pch=shapeVec, col=colVec)
+legend("bottomright", c("archetype", "centroid"), pch=1:2, col="grey")
+legend("bottomleft", levels(as.factor(gsub("\\.[0-9]$", "",
+                                           colnames(archCentr)))),
+       col=unique(colVec), pch=1)
+dev.off();
+
+shapeVec3 <- rep(NA, length(shapeVec))
+shapeVec3[shapeVec == 1] <- "p"
+shapeVec3[shapeVec == 2] <- "s"
+library(rgl)
+plot3d(dudi1$li[shapeVec == 1,1:3],
+       type="p", col=colVec[shapeVec == 1])
+plot3d(dudi1$li[shapeVec == 2,1:3],
+       type="s", add=T, col=colVec[shapeVec == 2])
+
+##################################################
+
+## Create a treatment profile for each archetype.
+## We need:
+## - archetypes
+## - gene expression in different tumors
+## - treatment of each tumor
+
+dim(alnArchs)
+
+cancerID <- cancerIDs[1]
+cancerID <- "LGG";
+cancerID <- cancerIDs[6]
+EVsL <- list();
+load("allCancers_EVs.rda")
+
+treatPerCancerArch <- list();
+
+for ( cancerID in cancerIDs ) {
+    cat(paste(cancerID,"\n"))
+    geneList <-
+        read.table(
+            sprintf("%s_UCSC/geneListExp.list",
+                    cancerID), as.is=T, h=F, sep="\t")[,1]
+    expr <- read.csv(sprintf("%s_UCSC/expMatrix.csv", cancerID),
+                     as.is=T, h=F)
+    colnames(expr) <- geneList;
+    
+    ## exprU <- t(expr[,ubiqGenes])
+    minExpr <- quantile(apply(expr, 2, mean), TCGAfracNarchs[cancerID,"quantile"]);
+    exprU <- t(expr[,apply(expr, 2, mean) > minExpr])
+    
+    ## discreteClinicalData_reOrdered_withTreatment.tsv, select
+    ## only treat.target
+    treatments <- 
+        read.table(
+            sprintf("%s_UCSC/discreteClinicalData_reOrdered_withTreatment.tsv",
+                    cancerID), as.is=T, h=T, sep="\t")
+    treatments <- treatments[,grep("treat.target.", colnames(treatments))]
+    colnames(treatments) <- gsub("^treat.target.", "", colnames(treatments))
+
+    myArchs <- archPerCancerList[[cancerID]]
+    if ( sum(rownames(myArchs) != rownames(exprU)) > 0 ) {
+        stop("genes in archetypes and samples are mis-aligned.\n")
+    }
+     
+    centerVec <- apply(exprU, 1, mean)
+    exprU0 <-
+        t(sapply(1:nrow(exprU), function(i) {
+            exprU[i,] - centerVec[i] }))
+    archs0 <-
+        t(sapply(1:nrow(exprU), function(i) {
+            myArchs[i,] - centerVec[i]
+        }))
+
+    nPCs <- 4;
+    if ( is.null(EVsL[[cancerID]]) ) {
+        ## EVsL[[cancerID]] <- eigen(cov(t(exprU0)))$vectors[,1:nPCs]
+        EVsL[[cancerID]] <- svd(exprU0, nu=nPCs, nv=nPCs)$u[,1:nPCs];
+        save(EVsL, file="allCancers_EVs.rda")
+    } else {
+        cat("Reusing previously computed eigenvectors.\n")
+    }
+    EVs <- EVsL[[cancerID]]
+
+    exprProj <- t(t(EVs) %*% exprU0)
+    archProj <- t(t(EVs) %*% archs0)
+    
+    plot(exprProj[,1], exprProj[,2],
+         xlim=range(c(exprProj[,1], archProj[,1])),
+         ylim=range(c(exprProj[,2], archProj[,2])))
+    points(archProj, pch=20, col="red", cex=2)
+
+    ## Take the topPct closest to each archetype: use only half
+    ## the data
+    topPct <- 1 / (ncol(archs0)+1)
+    
+    j <- 1;
+    archTreatProfile <-
+        sapply(1:nrow(archProj), function(j) {
+            dists <- sapply(1:nrow(exprProj), function(i) {
+                sqrt(sum((exprProj[i,] - archProj[j,])^2))
+            })
+            closestPts <-
+                order(dists)[1:round(topPct*length(dists))];
+            apply(treatments[closestPts,], 2, function(x) {
+                mean(x, na.rm=T) })
+        })
+
+    treatPerCancerArch[[cancerID]] <- archTreatProfile
+}
+
+alnTreats <-
+    matrix(NA, nrow(treatPerCancerArch[[1]]),
+           sum(sapply(archPerCancerList, function(a) { ncol(a) })));
+rownames(alnTreats) <- rownames(treatPerCancerArch[[1]]);
+
+n <- 0;
+for (i in 1:length(treatPerCancerArch)) {
+    for (j in 1:ncol(treatPerCancerArch[[i]]) ) {
+        n <- n + 1;
+        alnTreats[,n] <- treatPerCancerArch[[i]][,j]
+    }
+}
+
+colnames(alnTreats) <-
+    unlist(sapply(cancerIDs, function(a) {
+        idx <- which(cancerIDs == a)
+        sprintf("%s.%d",
+                rep(a, ncol(treatPerCancerArch[[idx]])),
+                1:ncol(treatPerCancerArch[[idx]])
+                )
+    }))
+
+alnTreats0 <- t(apply(alnTreats, 1, function(x) { x - mean(x, na.rm=T) }))
+alnTreats0[is.na(alnTreats0)] <- 0;
+
+pdf("treatPerArch.pdf", height=6, width=8);
+heatmap.2(alnTreats0, scale="none", trace="none",
+          col = heat.colors, margins = c(5, 12.5),
+          hclustfun=function(x) { hclust(x, method="ward.D") })
+dev.off()
+
+#####
+
+pdf("distTreatExprArch.pdf", height=8, width=8)
+par(mfrow=c(2,2))
+
+dTreat <- as.matrix(dist(t(alnTreats0)))
+dTreatN <- dTreat / median(dTreat)
+image(dTreatN, main="Treatments")
+
+dExpr <- as.matrix(dist(t(topExprArchs)))
+dExprN <- dExpr / median(dExpr)
+image(dExprN, main="Expression")
+
+## plot(dExprN, dTreatN)
+## cor.test(dExprN, dTreatN)
+
+rndTEPR <-
+    t(apply(topExprArchs, 1, function(x) { sample(x) }))
+dRndTEPR <- as.matrix(dist(t(rndTEPR)))
+dRndTEPRN <- dRndTEPR / median(dExpr)
+image(dRndTEPRN, main="Random expr.")
+
+## Normalization factor should be the same as is Expression?
+
+rndDists <-
+    sapply(1:1000, function(i) {
+        rndTEPR <-
+            t(apply(topExprArchs, 1,
+                    function(x) { sample(x) }))
+        dRndTEPR <- as.matrix(dist(t(rndTEPR)))
+        dRndTEPRN <- dRndTEPR / median(dExpr)
+        sum((dTreatN - dRndTEPRN)^2)
+    })
+
+initDist <- sum((dTreatN - dExprN)^2)
+hist(rndDists, 20,
+     xlim=range(c(rndDists, initDist)),
+     xlab="distance between matrices")
+abline(v=initDist, lwd=2, col="red")
+
+dev.off();
+
+##################################################
+
+## Is there a specific interaction between treatments and archetypes
+## associated to outcome?
+
+cancerID <- cancerIDs[1]
+cancerID <- "LGG";
+cancerID <- cancerIDs[6]
+cancerID <- "BRCA" #not a good cancer to find new drug-arch
+                   #combinations: therapy is already well tuned
+cancerID <- "COAD"
+cancerID <- "BLCA";
+cancerID <- "SYNT";
+EVsL <- list();
+load("allCancers_EVs.rda")
+
+showEverything <- F;
+
+## treatPerCancerArch <- list();
+
+pdf("treatArchResponse.pdf", height=8, width=8);
+for ( cancerID in cancerIDs ) {
+    cat(paste(cancerID,"\n"))
+    par(mfrow=c(2,2))
+
+    expr <- exprCancers[[cancerID]];
+
+    minExpr <- quantile(apply(expr, 2, mean), TCGAfracNarchs[cancerID,"quantile"]);
+    exprU <- t(expr[,apply(expr, 2, mean) > minExpr])
+    
+    ## discreteClinicalData_reOrdered_withTreatment.tsv, select
+    ## only treat.target
+    discreteClinical <- 
+        read.table(
+            sprintf("%s_UCSC/discreteClinicalData_reOrdered.tsv",
+                    cancerID), as.is=T, h=T, sep="\t")
+    treatments <-
+        discreteClinical[,
+                         c(which("treat.patientBestResp" == colnames(discreteClinical)), grep("treat.target.", colnames(discreteClinical)))]
+    colnames(treatments) <- gsub("^treat.target.", "", colnames(treatments))
+    colnames(treatments)[1] <- "best.resp";
+
+    best.respVec <-
+        sapply(treatments[,"best.resp"], function(x) {
+            if ( is.na(x) ) { return(NA) }
+            which(respRanking == x)
+        })
+    treatments[,"best.resp"] <- best.respVec;
+    
+    myArchs <- archPerCancerList[[cancerID]]
+    if ( sum(rownames(myArchs) != rownames(exprU)) > 0 ) {
+        stop("genes in archetypes and samples are mis-aligned.\n")
+    }
+    
+    centerVec <- apply(exprU, 1, mean)
+    exprU0 <-
+        t(sapply(1:nrow(exprU), function(i) {
+            exprU[i,] - centerVec[i] }))
+    archs0 <-
+        t(sapply(1:nrow(exprU), function(i) {
+            myArchs[i,] - centerVec[i]
+        }))
+
+    nPCs <- 4;
+    ## if ( is.null(EVsL[[cancerID]]) ) {
+        ## EVsL[[cancerID]] <- eigen(cov(t(exprU0)), symmetric=T)$vectors[,1:nPCs]
+        EVsL[[cancerID]] <- svd(exprU0, nu=nPCs, nv=nPCs)$u[,1:nPCs];
+        save(EVsL, file="allCancers_EVs.rda")
+    ## } else {
+    ##     cat("Reusing previously computed eigenvectors.\n")
+    ## }
+    EVs <- EVsL[[cancerID]]
+
+    exprProj <- t(t(EVs) %*% exprU0)
+    archProj <- t(t(EVs) %*% archs0)
+    
+    plot(exprProj[,1], exprProj[,2],
+         xlim=range(c(exprProj[,1], archProj[,1])),
+         ylim=range(c(exprProj[,2], archProj[,2])),
+         main=cancerID)
+    points(archProj, pch=20, col="blue", cex=2)
+
+    ## Take the topPct closest to each archetype: use only half
+    ## the data
+    ## topPct <- .5  / ncol(archs0)
+    topPct <- 1 / (ncol(archs0)+1)
+
+    j <- 1;
+    closestPtss <-
+        sapply(1:nrow(archProj), function(j) {
+            dists <- sapply(1:nrow(exprProj), function(i) {
+                sqrt(sum((exprProj[i,] - archProj[j,])^2))
+            })
+            closestPts <-
+                order(dists)[1:round(topPct*length(dists))];
+            ## apply(treatments[closestPts,], 2, function(x) {
+            ##     mean(x, na.rm=T) })
+            return(closestPts)
+        })
+    archFac <- rep(NA, nrow(exprProj))
+    for (i in 1:ncol(closestPtss)) {
+        archFac[closestPtss[,i]] <- i;
+    }
+    archFac <- as.factor(archFac);
+
+    ## sapply(c("PAM50_mRNA_nature2012", "PAM50Call_RNAseq",
+    ##          "ER_Status_nature2012", "PR_Status_nature2012"),
+    ##        function(lab) {
+    ##            sort(table(discreteClinical[closestPtss[,2],lab]))
+    ##        })
+    ## sapply(c("PAM50_mRNA_nature2012", "PAM50Call_RNAseq",
+    ##          "ER_Status_nature2012", "PR_Status_nature2012"),
+    ##        function(lab) {
+    ##            sort(table(discreteClinical[closestPtss[,3],lab]))
+    ##        })
+    
+    minOcc <- 10;
+    treatOcc <- sort(apply(treatments[,-1], 2, function(x) { sum(x, na.rm=T) }))
+    keptTreats <- names(which(treatOcc > minOcc))
+    treatFact <- as.data.frame(treatments[,keptTreats])
+    for ( i in 1:ncol(treatFact) ) {
+        treatFact[,i] <- as.factor(treatFact[,i])
+    }
+    table(treatments[,"best.resp"])
+    glmData <-
+        data.frame(
+            ## best.resp=as.numeric(treatments[,"best.resp"] !=
+            ##     "Clinical Progressive Disease"),
+            best.resp=as.numeric(treatments[,"best.resp"] > respCutOffs[cancerID]),
+            treatFact,
+            arch=archFac)
+    ## glmData <- glmData[apply(is.na(glmData), 1, sum) == 0,]
+    glmData <- glmData[apply(is.na(glmData[,-ncol(glmData)]), 1, sum) == 0,]
+    summary(glmData)
+    i <- "nucleotide.depletion";
+    i <- "DNA.damaging";
+    i <- "angiogenesis.signalling.inhibitor";
+    i <- "microtubule";
+
+    pVals <- sapply(colnames(glmData)[2:(ncol(glmData)-1)], function(i) {
+        cat(paste(i, "\n"))
+        tgd <- glmData[glmData[,i] == 1, c("best.resp","arch")]
+        if ( sum(dim(table(tgd)) < 2) > 0 ) { return(NA) }
+        cTab <- table(tgd) #+1 #FIXME
+        cTab <- cTab[,apply(cTab, 2, sum) > 0]
+        ## p <- chisq.test(cTab, simulate.p.value=F)$p.value
+        
+        ## if ( p < .1 ) {
+        if ( sum(cTab) >= minOcc ) {
+            cTabP <- cTab + 1;
+            logORSE <-
+                sapply(1:ncol(cTabP), function(j) {
+                    ORs <- c(cTabP[2,j] / cTabP[1,j],
+                             (sum(tgd[,"best.resp"] == 1) + 1) /
+                             (sum(tgd[,"best.resp"] == 0) + 1));
+                    c(logOR=log(ORs[1] / ORs[2]),
+                      SE=sqrt(sum(1/cTabP[,j]) +
+                          sum(1/c(sum(tgd[,"best.resp"] == 1) + 1,
+                                  sum(tgd[,"best.resp"] == 0) + 1))))
+                    ## sqrt(sum(1/cTabP[,j]) + sum(1/apply(cTabP[,-j], 1, sum))))
+                })
+
+            if ( any(abs(logORSE["logOR",]) -
+                     1.96 * logORSE["SE",] > 0) || showEverything ) { #FIXME
+                bp <- barplot(logORSE["logOR",],
+                              names=paste("A", 1:ncol(logORSE), sep=""),
+                              main=sprintf("%s", i),
+                              ylab=sprintf("log OR (n=%d)", nrow(tgd)))
+                sapply(1:ncol(logORSE), function(j) {
+                    arrows(bp[j,1], logORSE["logOR",j] +
+                           1.96 * logORSE["SE",j],
+                           bp[j,1], logORSE["logOR",j] -
+                           1.96 * logORSE["SE",j],
+                           angle=90, code=3, length=0.05)
+                })
+            }
+        }
+                      
+        ## glm1 <- glm(best.resp~., family=binomial, data=tgd);
+        ## summary(glm1)
+
+        return()
+    })
+}
+dev.off();
+
+##################################################
+
+## Build a treatment outcome matrix of archetypes (across cancers) x
+## treatments
+
+cancerID <- "BRCA";
+cancerID <- "COAD";
+cancerID <- "LGG";
+
+EVsL <- list();
+load("allCancers_EVs.rda")
+
+logORs <-
+    sapply(cancerIDs, function(cancerID) {
+        cat(paste(cancerID,"\n"))
+        
+        expr <- exprCancers[[cancerID]]
+        minExpr <- quantile(apply(expr, 2, mean), TCGAfracNarchs[cancerID,"quantile"]);
+        exprU <- t(expr[,apply(expr, 2, mean) > minExpr])
+        
+        ## discreteClinicalData_reOrdered_withTreatment.tsv, select
+        ## only treat.target
+        treatments <- 
+            read.table(
+                sprintf("%s_UCSC/discreteClinicalData_reOrdered.tsv",
+                        cancerID), as.is=T, h=T, sep="\t")
+        treatments <- treatments[,c(which("treat.patientBestResp" == colnames(treatments)),
+                                    grep("treat.target.", colnames(treatments)))]
+        colnames(treatments) <- gsub("^treat.target.", "", colnames(treatments))
+        colnames(treatments)[1] <- "best.resp";
+        colnames(treatments)
+        
+        myArchs <- archPerCancerList[[cancerID]]
+        if ( sum(rownames(myArchs) != rownames(exprU)) > 0 ) {
+            stop("genes in archetypes and samples are mis-aligned.\n")
+        }
+        
+        centerVec <- apply(exprU, 1, mean)
+        exprU0 <-
+            t(sapply(1:nrow(exprU), function(i) {
+                exprU[i,] - centerVec[i] }))
+        archs0 <-
+            t(sapply(1:nrow(exprU), function(i) {
+                myArchs[i,] - centerVec[i]
+            }))
+        
+        nPCs <- 4;
+        if ( is.null(EVsL[[cancerID]]) ) {
+            ## EVsL[[cancerID]] <- eigen(cov(t(exprU0)), symmetric=T)$vectors[,1:nPCs]
+            EVsL[[cancerID]] <- svd(exprU0, nu=nPCs, nv=nPCs)$u[,1:nPCs];
+            save(EVsL, file="allCancers_EVs.rda")
+        } else {
+            cat("Reusing previously computed eigenvectors.\n")
+        }
+        EVs <- EVsL[[cancerID]]
+        
+        exprProj <- t(t(EVs) %*% exprU0)
+        archProj <- t(t(EVs) %*% archs0)
+        
+        plot(exprProj[,1], exprProj[,2],
+             xlim=range(c(exprProj[,1], archProj[,1])),
+             ylim=range(c(exprProj[,2], archProj[,2])),
+             main=cancerID)
+        points(archProj, pch=20, col="blue", cex=2)
+        
+        ## Take the topPct closest to each archetype: use only half
+        ## the data
+        ## topPct <- .5  / ncol(archs0)
+        topPct <- 1 / (ncol(archs0)+1)
+        
+        j <- 1;
+        closestPtss <-
+            sapply(1:nrow(archProj), function(j) {
+                dists <- sapply(1:nrow(exprProj), function(i) {
+                    sqrt(sum((exprProj[i,] - archProj[j,])^2))
+                })
+                closestPts <-
+                    order(dists)[1:round(topPct*length(dists))];
+                ## apply(treatments[closestPts,], 2, function(x) {
+                ##     mean(x, na.rm=T) })
+                return(closestPts)
+            })
+        archFac <- rep(NA, nrow(exprProj))
+        for (i in 1:ncol(closestPtss)) {
+            ## FIXME the last archetypes snatched patients from other
+            ## archetypes
+            archFac[closestPtss[,i]] <- i;
+        }
+        archFac <- as.factor(archFac);
+        
+        minOcc <- 10;
+        treatOcc <- sort(apply(treatments[,-1], 2, function(x) { sum(x, na.rm=T) }))
+        keptTreats <- names(which(treatOcc > minOcc))
+        treatFact <- as.data.frame(treatments[,keptTreats])
+        for ( i in 1:ncol(treatFact) ) {
+            treatFact[,i] <- as.factor(treatFact[,i])
+        }
+        table(treatments[,"best.resp"])
+        glmData <-
+            data.frame(
+                ## best.resp=as.numeric(treatments[,"best.resp"] !=
+                ##     "Clinical Progressive Disease"),
+                best.resp=as.numeric(treatments[,"best.resp"] == "Complete Response"),
+                treatFact,
+                arch=archFac)
+        glmData <- glmData[apply(is.na(glmData[,-ncol(glmData)]), 1, sum) == 0,]
+        summary(glmData)
+        i <- "nucleotide.depletion";
+        i <- "DNA.damaging";
+        i <- "angiogenesis.signalling.inhibitor";
+        i <- "microtubule";
+        
+        logOR <-
+            sapply(colnames(glmData)[2:(ncol(glmData)-1)], function(i) {
+                cat(paste(i, "\n"))
+                tgd <- glmData[glmData[,i] == 1, c("best.resp","arch")]
+                if ( sum(dim(table(tgd)) < 2) > 0 ) {
+                    return(rep(NA, nrow(archProj)))
+                }
+                cTab <- table(tgd) #+1 #FIXME
+                ## cTab <- cTab[,apply(cTab, 2, sum) > 0]
+                
+                if ( sum(cTab) >= minOcc ) {
+                    cTabP <- cTab + 1;
+                    logORSE <-
+                        sapply(1:ncol(cTabP), function(j) {
+                            odds <- c(cTabP[2,j] / cTabP[1,j],
+                                      (sum(tgd[,"best.resp"] == 1) + 1) /
+                                      (sum(tgd[,"best.resp"] == 0) + 1));
+                                      ## exp(diff(log(apply(cTabP, 1, sum)))));
+                            ## exp(diff(log(apply(cTabP[,-j], 1, sum)))));
+                            c(logOR=log(odds[1] / odds[2]),
+                              SE=sqrt(sum(1/cTabP[,j]) +
+                                  sum(1/c(sum(tgd[,"best.resp"] == 1) + 1,
+                                          sum(tgd[,"best.resp"] == 0) + 1))))
+                            ## 1/apply(cTabP[,-j], 1, sum))))
+                        })
+                    
+                    return(logORSE["logOR",])
+                } else {
+                    return(rep(NA, nrow(archProj)))
+                }
+
+                return(logOR)
+            })
+    })
+
+logORs
+
+alnResponses <-
+    matrix(NA, ncol(treatments) - 1, ## nrow(treatPerCancerArch[[1]]),
+           sum(sapply(archPerCancerList, function(a) { ncol(a) })));
+## rownames(alnResponses) <- rownames(treatPerCancerArch[[1]]);
+rownames(alnResponses) <- colnames(treatments)[-1]
+
+n <- 0;
+for (i in 1:length(logORs)) {
+    for (j in 1:nrow(logORs[[i]])) {
+        n <- n + 1;
+        alnResponses[colnames(logORs[[i]]),n] <- logORs[[i]][j,]
+    }
+}
+
+colnames(alnResponses) <-
+    unlist(sapply(cancerIDs, function(a) {
+        idx <- which(cancerIDs == a)
+        sprintf("%s.%d",
+                rep(a, ncol(archPerCancerList[[idx]])),
+                1:ncol(archPerCancerList[[idx]])
+                )
+    }))
+
+selTreats <- names(rev(sort(apply(!is.na(alnResponses), 1, sum)))[1:4])
+selArchs <- which(apply(!is.na(alnResponses), 2, sum) >= 3)
+
+## alnResponses0 <- t(apply(alnResponses, 1, function(x) { x - mean(x, na.rm=T) }))
+alnResponses0 <- alnResponses[selTreats,selArchs]
+
+alnResponses0NA <- alnResponses0;
+alnResponses0NA[is.na(alnResponses0NA)] <- 0;
+
+pdf("respPerArch.pdf", height=6, width=8);
+heatmap.2(alnResponses0NA, scale="none", trace="none",
+          col = heat.colors, margins = c(5, 12.5),
+          hclustfun=function(x) { hclust(x, method="ward.D") })
+dev.off()
+
+#####
+
+## Take out average gene expression to focus on changes between cancers
+sel <- rev(order(apply(alnArchs, 1, sd)))[1:1000]
+## sel <- 1:nrow(alnArchs)
+topExprArchs <-
+    t(apply(alnArchs[sel,], 1, function(x) { x - mean(x) }))
+
+pdf("distRespExprArch.pdf", height=8, width=8)
+par(mfrow=c(2,2))
+
+dTreat <- as.matrix(dist(t(alnResponses0)))
+dTreatN <- dTreat / median(dTreat)
+image(dTreatN, main="Responses")
+
+dExpr <- as.matrix(dist(t(topExprArchs[,selArchs])))
+dExprN <- dExpr / median(dExpr)
+image(dExprN, main="Expression")
+
+## plot(dExprN, dTreatN)
+## cor.test(dExprN, dTreatN)
+
+## rndTEPR <-
+##     t(apply(topExprArchs, 1, function(x) { sample(x) }))
+## dRndTEPR <- as.matrix(dist(t(rndTEPR)))
+## dRndTEPRN <- dRndTEPR / median(dRndTEPR)
+## image(dRndTEPRN, main="Random expr.")
+
+## Normalization factor should be the same as is Expression?
+
+## rndDists <-
+##     sapply(1:1000, function(i) {
+##         rndTEPR <-
+##             t(apply(topExprArchs, 1,
+##                     function(x) { sample(x) }))
+##         dRndTEPR <- as.matrix(dist(t(rndTEPR)))
+##         dRndTEPRN <- dRndTEPR / median(dRndTEPR)
+##         sum((dTreatN - dRndTEPRN)^2)
+##     })
+
+rnddExprN <- dExprN;
+upperTriangle(rnddExprN, diag=F) <- 
+    sample(upperTriangle(dExprN, diag=F))
+lowerTriangle(rnddExprN) <- NA; ## upperTriangle(rnddExprN)
+image(rnddExprN, main="Random expr.")
+
+rndDists <-
+    sapply(1:1000, function(i) {
+        rnddExprN <- 
+            sample(upperTriangle(dExprN, diag=F))
+        sum((upperTriangle(dTreatN, diag=F) -
+             rnddExprN)^2)
+    })
+
+initDist <- sum((upperTriangle(dTreatN) - upperTriangle(dExprN))^2)
+hist(rndDists, 20,
+     xlim=range(c(rndDists, initDist)),
+     xlab="distance between matrices")
+abline(v=initDist, lwd=2, col="red")
+dev.off();
+
+##################################################
+
+## We test whether good responses are associated to specific
+## archetypes
+
+cancerID <- "BLCA";
+cancerID <- "BRCA";
+cancerID <- "GBM";
+cancerID <- "LGG";
+cancerID <- "SYNT";
+EVsL <- list();
+load("allCancers_EVs.rda")
+showEverything <- F;
+
+testArchResp <- function(glmData, thetas,
+                         what=c("p-value", "direction"), minOcc=10) {
+    sapply(colnames(glmData)[2:ncol(glmData)], function(i) {
+        cat(paste(i, "\n"))
+        tgd <- glmData[glmData[,i] == 1, "best.resp"]
+        thisTheta <- thetas[glmData[,i] == 1,]
+        if ( sum(tgd == 0) > minOcc/2 && sum(tgd == 1) > minOcc/2 ) {
+            ## plot(exprProj[,1], exprProj[,2],
+            ##      xlim=range(c(exprProj[,1], archProj[,1])),
+            ##      ylim=range(c(exprProj[,2], archProj[,2])),
+            ##      main=cancerID)
+            ## points(archProj, pch=20, col="blue", cex=2)
+            
+            ## points(exprProj[which(noNA)[which(glmData[,i] == 1)[tgd == 1]],1],
+            ##        exprProj[which(noNA)[which(glmData[,i] == 1)[tgd == 1]],2],
+            ##        col="green", pch=20);
+            ## points(exprProj[which(noNA)[which(glmData[,i] == 1)[tgd == 0]],1],
+            ##        exprProj[which(noNA)[which(glmData[,i] == 1)[tgd == 0]],2],
+            ##        col="red", pch=20);
+
+            lapply(1:ncol(thetas), function(arcIdc) {
+                if ( what == "p-value" ) {
+                    return(
+                        wilcox.test(thisTheta[tgd == 1, arcIdc],
+                                    thisTheta[tgd == 0, arcIdc])$p.value
+                        )
+                } else {
+                    return(
+                        (-(median(thisTheta[tgd == 1, arcIdc]) -
+                           median(thisTheta[tgd == 0, arcIdc])))
+                        )
+                }
+            })
+        } else {
+            return(lapply(1:ncol(thetas), function(arcIdc) {
+                return(NA)
+            }))
+        }
+    })
+}
+
+pdf("treatArchResponse.pdf", height=8, width=8);
+pVals <-
+    sapply(cancerIDs, function(cancerID) {
+        cat(paste(cancerID,"\n"))
+        par(mfrow=c(2,2))
+        
+        expr <- exprCancers[[cancerID]];
+        minExpr <- quantile(apply(expr, 2, mean), TCGAfracNarchs[cancerID,"quantile"]);
+        exprU <- t(expr[,apply(expr, 2, mean) > minExpr])
+        
+        ## discreteClinicalData_reOrdered_withTreatment.tsv, select
+        ## only treat.target
+        treatments <- 
+            read.table(
+                sprintf("%s_UCSC/discreteClinicalData_reOrdered.tsv",
+                        cancerID), as.is=T, h=T, sep="\t")
+        treatments <- treatments[,c(which("treat.patientBestResp" == colnames(treatments)),
+                                    grep("treat.target.", colnames(treatments)))]
+        colnames(treatments) <- gsub("^treat.target.", "", colnames(treatments))
+        colnames(treatments)[1] <- "best.resp";
+
+        respRanking <- c("Clinical Progressive Disease",
+                         "Stable Disease", "Partial Response",
+                         "Complete Response")
+        best.respVec <-
+            sapply(treatments[,"best.resp"], function(x) {
+                if ( is.na(x) ) { return(NA) }
+                which(respRanking == x)
+            })
+        treatments[,"best.resp"] <- best.respVec;
+        
+        bp <- barplot(table(as.numeric(best.respVec)))
+        respCutOff <- median(best.respVec, na.rm=T);
+        respCutOff <- respCutOff +
+            which.min(abs(c(sum(best.respVec < respCutOff - .5, na.rm=T) / sum(!is.na(best.respVec)),
+                            sum(best.respVec < respCutOff + .5, na.rm=T) /
+                            sum(!is.na(best.respVec))) - .5)) - 1.5
+        ## if ( respCutOff == 1 ) {
+        ##     respCutOff <- 1.5
+        ## } else if ( respCutOff == 4 ) {
+        ##     respCutOff <- 3.5
+        ## }
+        abline(v=(respCutOff - 1)/(nrow(bp)-1) * diff(range(bp)) + min(bp), lty=2)
+        
+        myArchs <- archPerCancerList[[cancerID]]
+        if ( sum(rownames(myArchs) != rownames(exprU)) > 0 ) {
+            stop("genes in archetypes and samples are mis-aligned.\n")
+        }
+        
+        centerVec <- apply(exprU, 1, mean)
+        exprU0 <-
+            t(sapply(1:nrow(exprU), function(i) {
+                exprU[i,] - centerVec[i] }))
+        archs0 <-
+            t(sapply(1:nrow(exprU), function(i) {
+                myArchs[i,] - centerVec[i]
+            }))
+
+        nPCs <- 4;
+        ## if ( is.null(EVsL[[cancerID]]) ) {
+            ## EVsL[[cancerID]] <- eigen(cov(t(exprU0)), symmetric=T)$vectors[,1:nPCs]
+            EVsL[[cancerID]] <- svd(exprU0, nu=nPCs, nv=nPCs)$u[,1:nPCs];
+            save(EVsL, file="allCancers_EVs.rda")
+        ## } else {
+        ##     cat("Reusing previously computed eigenvectors.\n")
+        ## }
+        EVs <- EVsL[[cancerID]]
+
+        exprProj <- t(t(EVs) %*% exprU0)
+        archProj <- t(t(EVs) %*% archs0)
+        
+        plot(exprProj[,1], exprProj[,2],
+             xlim=range(c(exprProj[,1], archProj[,1])),
+             ylim=range(c(exprProj[,2], archProj[,2])),
+             main=cancerID)
+        points(archProj, pch=20, col="blue", cex=2)
+
+        ## Take the topPct closest to each archetype: use only half
+        ## the data
+        ## topPct <- .5  / ncol(archs0)
+        ## topPct <- 1 / (ncol(archs0)+1)
+
+        ## Move 0,0 to the last archetype:
+        exprProjA <- t(apply(exprProj, 1, function(x) { x - archProj[nrow(archProj),] }))
+        archProjA <-
+            t(apply(archProj, 1,
+                    function(x) { x - archProj[nrow(archProj),] }))[-nrow(archProj),]
+        ## archetypes x dimensions
+        thetas <- exprProjA[,1:nrow(archProjA)] %*% solve(archProjA[,1:nrow(archProjA)])
+        thetas <- cbind(thetas, apply(thetas, 1, function(x) { 1 - sum(x) }))
+        
+        minOcc <- 10;
+        treatOcc <- sort(apply(treatments[,-1], 2, function(x) { sum(x, na.rm=T) }))
+        keptTreats <- names(which(treatOcc > minOcc))
+        treatFact <- as.data.frame(treatments[,keptTreats])
+        for ( i in 1:ncol(treatFact) ) {
+            treatFact[,i] <- as.factor(treatFact[,i])
+        }
+        table(treatments[,"best.resp"])
+        preGlmData <-
+            data.frame(
+                ## best.resp=as.numeric(treatments[,"best.resp"] !=
+                ##     "Clinical Progressive Disease"),
+                best.resp=treatments[,"best.resp"] > respCutOff,
+                ## best.resp=as.numeric(treatments[,"best.resp"] == "Complete Response"),
+                treatFact)
+        ## glmData <- glmData[apply(is.na(glmData), 1, sum) == 0,]
+        noNA <- apply(is.na(preGlmData), 1, sum) == 0
+        glmData <- preGlmData[noNA,]
+        if ( nrow(glmData) < minOcc ) {
+            return(NULL);
+        }
+        summary(glmData)
+        i <- "nucleotide.depletion";
+        i <- "DNA.damaging";
+        i <- "angiogenesis.signalling.inhibitor";
+        i <- "microtubule";
+        i <- "growth.signalling.inhibitor";
+        i <- "topoisomerase.inhibitor";
+        i <- "other";
+
+        dir <- testArchResp(glmData, thetas, what="direction", minOcc=minOcc)
+        p <- testArchResp(glmData, thetas, "p-value", minOcc=minOcc)
+        q <- as.numeric(p) * sum(!is.na(p))
+        q[q>1] <- 1
+
+        q <- matrix(q, nrow(p), ncol(p))
+        colnames(q) <- colnames(p);
+        return(list(dir=dir, p=p, q=q))
+    })
+dev.off();
+
+cancerID <- cancerIDs[1]
+cancerID <- "SYNT"
+cancerID <- "GBM"
+sapply(cancerIDs, function(cancerID) {
+    ## cat(paste(cancerID, "\n"))
+    cancer <- pVals[[cancerID]]
+    if ( is.null(cancer) ) { return() }
+    i <- 1;
+    sapply(1:nrow(cancer[["p"]]), function(i) {
+        j <- 1;
+        sapply(1:ncol(cancer[["p"]]), function(j) {
+            if ( !is.na(cancer[["p"]][i,j]) && cancer[["p"]][i,j] < .05 ) {
+                ## browser();
+                cat(sprintf("%s: arch %d - %s (%.2f)\n",
+                            cancerID, i, colnames(cancer[["p"]])[j],
+                            cancer[["dir"]][i,j]))
+            }
+        })
+        return()
+    })
+    return()
+})
+
+##################################################
+
+## Testing generalized linear models
+
+n <- 100;
+cont <- rnorm(n)
+disc <- as.numeric(runif(n) < .5)
+q <- 1 * cont + 1 * disc;
+q <- q - mean(q)
+disc[disc == 0] <- "A";
+disc[disc == 1] <- "B";
+disc <- as.factor(disc)
+simOut <- runif(n) < 1/(1+exp(-q))
+
+glmData <- data.frame(response=as.numeric(simOut),
+                      cont=cont,
+                      disc=disc)
+
+par(mfrow=c(1,2))
+boxplot(cont~simOut, data=glmData)
+barplot(with(glmData, table(simOut, disc)), leg=T)
+
+head(glmData)
+
+summary(glm(response~., family=binomial, data=glmData))

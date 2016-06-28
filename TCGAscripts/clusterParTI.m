@@ -1,8 +1,8 @@
 %% ParTI pipeline for TCGA datasetson
 addpath ../ParTI/
 origPath = pwd;
-% myQuantile = .4;
-% nArchetypes = 5;
+% myQuantile = 0;
+% nArchetypes = 4;
 
 global ForceNArchetypes; ForceNArchetypes = nArchetypes;
 
@@ -43,6 +43,7 @@ minExpr = quantile(mean(geneExpression,1), myQuantile);
 selGenes = find(mean(geneExpression,1) > minExpr);
 geneExpression = geneExpression(:,selGenes);
 geneNames = geneNames(selGenes,:);
+cell2csv('geneNamesAfterExprFiltering.list', geneNames);
 
 %% We import the sample attributes, i.e. the clinical data on patients
 % These come in two kinds: 
@@ -83,7 +84,15 @@ GONames = regexprep(GONames, '_', ' ');
 % Comma-Separated-Value text file, under the name 'Cancer_enrichmentAnalysis_*.csv'.
 
 cd ../ParTI
-[arc, arcOrig, ~] = ParTI_lite(geneExpression);
+if exist(strcat(origPath, '/arcs_dims.tsv'), 'file') == 2
+    fprintf('Reloading previously computed archetypes\n');
+    load(strcat(origPath, '/arcs_dims.tsv'))
+    load(strcat(origPath, '/arcsOrig_genes.tsv'))
+else
+    [arc, arcOrig, ~] = ParTI_lite(geneExpression);
+    save(strcat(origPath, '/arcs_dims.tsv'), 'arc', '-ascii')
+    save(strcat(origPath, '/arcsOrig_genes.tsv'), 'arcOrig', '-ascii')
+end
 
 %% Clinical features
 close all

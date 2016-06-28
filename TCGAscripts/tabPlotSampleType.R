@@ -16,8 +16,9 @@ par(mfrow=c(2, 3))
 
 par(mar=c(10, 4, 1, 1))
 barplot(table(discrAttr[,attrList]), las=3, bes=F, leg=T)
-
 avgExpr <- apply(geneExpression, 2, mean)
+write.table(avgExpr, file="avgExpr.tsv", quote=F, row.names=F, col.names=F)
+
 ## plot(avgExpr, apply(geneExpression, 2, sd))
 
 heatscatter(avgExpr, apply(geneExpression, 2, sd),
