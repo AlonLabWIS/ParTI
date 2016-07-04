@@ -1,5 +1,7 @@
 rm(list=ls())
 
+doFocusOnInitialTreatment <- T;
+
 tabLabels <-
     read.table("drugFile.txt", h=F, sep="\t", as.is=T)[1:3,]
 drugs <- read.table("drugFile.txt", h=F, sep="\t", skip=3, as.is=T)
@@ -219,70 +221,85 @@ sort(table(splitDrugs[sapply(stdDrugs, length) == 0]))
 ## register the earliest / latest date of the treatment and a boolean
 ## vector of all drugs given
 
-patient <- unique(drugs[,"bcr_patient_barcode"])[3]
-## patient <- unique(drugs[drugs[,"pharmaceutical_tx_started_days_to"] < typicalTreatDuration,"bcr_patient_barcode"])[3]
+## if ( doFocusOnInitialTreatment ) {
+##     isInitTreat <- !is.na(drugs[,"pharmaceutical_tx_started_days_to"]) &
+##         drugs[,"pharmaceutical_tx_started_days_to"] < typicalTreatDuration;
+##     drugsInit <- drugs[isInitTreat,]
+## } else {
+##     drugsInit <- drugs;
+## }
 
 ## We iterate through all patients
-patientDrugs <- 
-    sapply(unique(drugs[,"bcr_patient_barcode"]), function(patient) {
-        thisPatient <- which(drugs[,"bcr_patient_barcode"] == patient)
-        idx <- thisPatient[1]
-        ## We iterate over all treatments given to this patient
-        givenDrugs <-
-            unlist(
-                sapply(thisPatient, function(idx) {
-                    ## A treatment may include several drugs, over which
-                    ## we iterate
-                    unlist(
-                        sapply(drugLists[[idx]], function(x) {
-                            sel <- drugDic[,1] == x
-                            if ( sum(sel) == 0 ) {
-                                cat(sprintf("Could not map '%s'\n", x))
-                                return()
-                            } else {
-                                return(drugDic[sel, 2])
-                            }
-                        })
-                        )
-                })
-                )
-        treatResp <-
-            unlist(unique(drugs[thisPatient,"treatment_best_response"]));
-        if ( length(treatResp) > 1 ) {
-            treatResp <- treatResp[!is.na(treatResp)]
-        }
-        return(
-            list(
-                days_to_drugs_start=
-                min(drugs[thisPatient,"pharmaceutical_tx_started_days_to"],
-                    na.rm=T),
-                days_to_drugs_end=
-                max(drugs[thisPatient,"pharmaceutical_tx_ended_days_to"],
-                    na.rm=T),
-                treatment_best_response=treatResp,
-                drugs=unique(givenDrugs)))
-    })
-
+## FIXME This doesn't include radiotherapy...
 drugLabels <- unique(drugDic[,2]);
 drugLabels <- c(drugLabels, "radiotherapy");
 
-patient <- colnames(patientDrugs)[3];
+patient <- unique(drugs[,"bcr_patient_barcode"])[2]
+
+patientTreatments <- 
+    sapply(unique(c(drugs[,"bcr_patient_barcode"],
+                    radiations[,"bcr_patient_barcode"])),
+           function(patient) {
+               ## Fetch drugs and best response
+               thisPatient <- drugs[,"bcr_patient_barcode"] == patient
+               if ( doFocusOnInitialTreatment ) {
+                   thisPatient <- thisPatient &
+                       !is.na(drugs[,"pharmaceutical_tx_started_days_to"]) & 
+                           drugs[,"pharmaceutical_tx_started_days_to"] <
+                               typicalTreatDuration
+               }
+               thisPatient <- which(thisPatient);
+               idx <- thisPatient[1]
+               ## We iterate over all treatments given to this patient
+               givenDrugs <-
+                   unlist(
+                       sapply(thisPatient, function(idx) {
+                           ## A treatment may include several drugs, over which
+                           ## we iterate
+                           unlist(
+                               sapply(drugLists[[idx]], function(x) {
+                                   sel <- drugDic[,1] == x
+                                   if ( sum(sel) == 0 ) {
+                                       cat(sprintf("Could not map '%s'\n", x))
+                                       return()
+                                   } else {
+                                       return(drugDic[sel, 2])
+                                   }
+                               })
+                               )
+                       })
+                       )
+               tVec <- rep(F, length(drugLabels))
+               names(tVec) <- drugLabels;
+               for ( x in givenDrugs ) {
+                   tVec[x] <- T;
+               }
+
+               radioSel <- radiations[,"bcr_patient_barcode"] == patient;
+               if ( doFocusOnInitialTreatment ) {
+                   radioSel <- radioSel &
+                       !is.na(radiations[,"radiation_therapy_started_days_to"]) &
+                           radiations[,"radiation_therapy_started_days_to"] <
+                               typicalTreatDuration
+               }
+               tVec["radiotherapy"] <- any(radioSel)
+               radioResponse <- radiations[radioSel,"treatment_best_response"]
+               treatResp <-
+                   unique(c(drugs[thisPatient,"treatment_best_response"],
+                            radiations[radioSel,"treatment_best_response"]))
+               if ( any(is.na(treatResp)) ) {
+                   treatResp <- treatResp[!is.na(treatResp)]
+               }
+               return(list(treatment_best_response=treatResp,
+                           treatment_vector=tVec))
+           })
+
+patient <- colnames(patientTreatments)[2];
 ## patient <- "TCGA-A1-A0SG"
 resMat <-
-    sapply(colnames(patientDrugs), function(patient) {
+    sapply(colnames(patientTreatments), function(patient) {
+        as.numeric(patientTreatments[["treatment_vector",patient]])
         ## cat(sprintf("%s\n", patient))
-        idcs <-
-            sapply(patientDrugs[["drugs",patient]], function(d) {
-                which(d == drugLabels)
-            })
-        dVec <- rep(F, length(drugLabels))
-        if ( length(idcs) > 0 ) {
-            dVec[idcs] <- T;
-        }
-        if ( sum(radiations[,"bcr_patient_barcode"] == patient) > 0 ) {
-            dVec[drugLabels == "radiotherapy"] <- T;
-        }
-        return(as.numeric(dVec))
     })
 rownames(resMat) <- drugLabels; 
 
@@ -317,28 +334,15 @@ resMatF <- rbind(resMat, resMatS)
 ## outcomes to the drug best treatment outcomes when patients
 ## underwent both.
 
-patientId <- intersect(colnames(patientDrugs),
-                       radiations[,"bcr_patient_barcode"])[1]
+## patientId <- intersect(colnames(patientDrugs),
+##                        radiations[,"bcr_patient_barcode"])[1]
 ## sapply(intersect(colnames(patientDrugs),
 ##                  radiations[,"bcr_patient_barcode"]),
-patientId <- "TCGA-MS-A51U";
+patientId <- colnames(patientTreatments)[2]
 patientBestResp <-
-    sapply(unique(c(colnames(patientDrugs),
-                    radiations[,"bcr_patient_barcode"])),
+    sapply(colnames(patientTreatments),
            function(patientId) {
-               allResps <- c();
-               sel <- which(radiations[,"bcr_patient_barcode"] == patientId);
-               if ( length(sel) > 0 ) {
-                   allResps <-
-                       c(allResps,
-                         radiations[sel,"treatment_best_response"])
-               }
-               sel <- which(colnames(patientDrugs) == patientId);
-               if ( length(sel) > 0 ) {
-                   allResps <-
-                       c(allResps,
-                         patientDrugs[["treatment_best_response",sel]])
-               }
+               allResps <- unlist(patientTreatments["treatment_best_response",patientId])
                allResps <- unique(allResps[!is.na(allResps)])
                if ( length(allResps) == 0 ) { allResps <- NA; }
                if ( length(allResps) > 1 ) {
@@ -360,18 +364,8 @@ patientBestResp <-
            })
     
 drugTab <-
-    merge(
-        data.frame(
-            colnames(patientDrugs),
-            data.frame(
-                days_to_drugs_start=unlist(patientDrugs[1,]),
-                days_to_drugs_end=unlist(patientDrugs[2,])## ,
-                ## treatment_best_response=
-                ## unlist(patientDrugs[3,])
-                )
-            ),
-        data.frame(colnames(resMatF),
-                   t(resMatF)), by=1)
+    data.frame(colnames(resMatF),
+               t(resMatF));
 write.csv(drugTab, file="drugTab.csv", row.names=F)
 
 treatTab <-
@@ -390,17 +384,17 @@ samplesOrdered <-
 sId <- samplesOrdered[1]
 treatReordered <-
     t(sapply(samplesOrdered,
-           function(sId) {
-               patId <- gsub("-[0-9]*$", "", sId);
-               sel <- treatTab[,1] == patId;
-               if ( sum(sel) == 1 ) {
-                   return(unlist(treatTab[sel,-1]))
-               } else if ( sum(sel) == 0 ) {
-                   return(rep(NA, ncol(treatTab) - 1))
-               } else {
-                   stop("This shouldn't happen\n")
-               }
-           }))
+             function(sId) {
+                 patId <- gsub("-[0-9]*$", "", sId);
+                 sel <- treatTab[,1] == patId;
+                 if ( sum(sel) == 1 ) {
+                     return(unlist(treatTab[sel,-1]))
+                 } else if ( sum(sel) == 0 ) {
+                     return(rep(NA, ncol(treatTab) - 1))
+                 } else {
+                     stop("This shouldn't happen\n")
+                 }
+             }))
 
 colnames(treatReordered) <- colnames(treatTab)[-1]
 head(treatReordered)
