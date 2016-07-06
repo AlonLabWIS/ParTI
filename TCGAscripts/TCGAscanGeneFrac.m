@@ -2,8 +2,8 @@
 
 % Default setting
 
-%myQuantile = .5;
-%nArchetypes = 4;
+%myQuantile = 0;
+%nArchetypes = 5;
 
 %%
 addpath ../ParTI/
@@ -18,8 +18,8 @@ geneExpression = dlmread('expMatrix.csv', ',');
 % We load gene names.
 % geneNames = importdata('geneListExp.list');
 
-[discrAttrNames, discrAttr] = ...
-    read_enriched_csv('discreteClinicalData_reOrdered.tsv', char(9));
+%[discrAttrNames, discrAttr] = ...
+%    read_enriched_csv('discreteClinicalData_reOrdered.tsv', char(9));
 
 %% Select genes
 % hist(reshape(geneExpression, 1, numel(geneExpression)),30);
@@ -40,9 +40,9 @@ global abortAfterPval; abortAfterPval = 1;
 % global lowIterations; lowIterations = 1;
 
 %% Remove normal tissues
-featIdx = find(strcmp(discrAttrNames, 'sample_type'));
-noNormal = find(strcmp(discrAttr(:,featIdx), 'Solid Tissue Normal') == 0);
-geneExpression = geneExpression(noNormal,:);
+% featIdx = find(strcmp(discrAttrNames, 'sample_type'));
+% noNormal = find(strcmp(discrAttr(:,featIdx), 'Solid Tissue Normal') == 0);
+% geneExpression = geneExpression(noNormal,:);
 
 %% Finally, we perform the compete analysis, including randomization
 % controls and archetype error estimation.

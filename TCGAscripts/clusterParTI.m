@@ -1,8 +1,8 @@
 %% ParTI pipeline for TCGA datasetson
 addpath ../ParTI/
 origPath = pwd;
-% myQuantile = 0;
-% nArchetypes = 4;
+% myQuantile = 0.0;
+% nArchetypes = 5;
 
 global ForceNArchetypes; ForceNArchetypes = nArchetypes;
 
@@ -40,10 +40,15 @@ geneNames = importdata('geneListExp.list');
 
 %% Select genes
 minExpr = quantile(mean(geneExpression,1), myQuantile);
-selGenes = find(mean(geneExpression,1) > minExpr);
+selGenes = find(mean(geneExpression,1) >= minExpr);
 geneExpression = geneExpression(:,selGenes);
 geneNames = geneNames(selGenes,:);
 cell2csv('geneNamesAfterExprFiltering.list', geneNames);
+
+binSize=.1; % 10% by default
+if length(selGenes) * binSize > 100
+    binSize = 100 / length(selGenes);
+end
 
 %% We import the sample attributes, i.e. the clinical data on patients
 % These come in two kinds: 
@@ -58,14 +63,19 @@ cell2csv('geneNamesAfterExprFiltering.list', geneNames);
 %Load continuous features
 %[contAttrNames, contAttr] = ...
 %   read_enriched_csv('continuousClinicalData_reOrdered.tsv', char(9));
-contAttr = dlmread('continuousClinicalData_reOrdered_justData.csv', ',');
-contAttrNames = importdata('continuousClinicalData_reOrdered_featNames.list');
+if exist('continuousClinicalData_reOrdered_justData.csv', 'file') == 2
+    contAttr = dlmread('continuousClinicalData_reOrdered_justData.csv', ',');
+    contAttrNames = importdata('continuousClinicalData_reOrdered_featNames.list');
+    contAttrNames = regexprep(contAttrNames, '_', ' ');
+else
+    contAttr = [];
+    contAttrNames = [];
+end
 
 %% Finally, we substitute underscores '_' in variable names with spaces ' ' 
 % to prevent the characters following underscores from appearing in indice
 % position.
 discrAttrNames = regexprep(discrAttrNames, '_', ' ');
-contAttrNames = regexprep(contAttrNames, '_', ' ');
 GONames = regexprep(GONames, '_', ' ');
 
 %% Remove normal tissues
@@ -87,7 +97,9 @@ cd ../ParTI
 if exist(strcat(origPath, '/arcs_dims.tsv'), 'file') == 2
     fprintf('Reloading previously computed archetypes\n');
     load(strcat(origPath, '/arcs_dims.tsv'))
+    arc = arcs_dims;
     load(strcat(origPath, '/arcsOrig_genes.tsv'))
+    arcOrig = arcsOrig_genes;
 else
     [arc, arcOrig, ~] = ParTI_lite(geneExpression);
     save(strcat(origPath, '/arcs_dims.tsv'), 'arc', '-ascii')

@@ -1,6 +1,6 @@
 rm(list=ls())
 
-doFocusOnInitialTreatment <- T;
+doFocusOnInitialTreatment <- F;
 
 tabLabels <-
     read.table("drugFile.txt", h=F, sep="\t", as.is=T)[1:3,]

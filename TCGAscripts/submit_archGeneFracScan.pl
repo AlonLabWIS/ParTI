@@ -57,7 +57,7 @@ for ( my $nArch = $nArchetypesMin;
 	open G, ">".$bFile;
 	print G "#BSUB -q $queue"."\n";
 	print G "#BSUB -J $jobName"."\n";
-	print G '#BSUB -R "select[mem>1200] rusage[mem=1200]"'."\n";
+	print G '#BSUB -R "select[mem>7000] rusage[mem=7000]"'."\n";
 	print G "#BSUB -o $bOutFile"."\n";
 	print G "#BSUB -e $bErrFile"."\n";
 	# print G "module load matlab/R2012a"."\n";
