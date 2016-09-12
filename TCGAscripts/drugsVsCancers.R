@@ -172,8 +172,7 @@ heatmap.2(treatPerCancer, scale="none",
           hclustfun=function(x) { hclust(x, method="ward.D") })
 
 treatPerCancer0 <-
-    t(apply(treatPerCancer, 1, function(x) { (x - median(x)) / sd(x)
-                                         }))
+    t(apply(treatPerCancer, 1, function(x) { (x - median(x)) / sd(x) }))
 sdmd <- function(x) { mean(abs(x - median(x))) }
 sum(apply(treatPerCancer0, 1, sd) < 1e-10)
 
@@ -338,10 +337,10 @@ plot(hclust(dist(t(treatPerCancerS0)), method="ward.D"), main="Treatments")
 ## Now study archetypes instead of cancers
 
 ## Take out average gene expression to focus on changes between cancers
-sel <- rev(order(apply(alnArchs[,-grep("SYNT", colnames(alnArchs))], 1, sd)))[1:1000]
+sel <- rev(order(apply(alnArchs[,-grep("SYNT|ALL", colnames(alnArchs))], 1, sd)))[1:1000]
 ## sel <- 1:nrow(alnArchs)
 topExprArchs <-
-    t(apply(alnArchs[sel,-grep("SYNT", colnames(alnArchs))], 1,
+    t(apply(alnArchs[sel,-grep("SYNT|ALL", colnames(alnArchs))], 1,
             function(x) { x - mean(x) }))
 
 pdf("topExprArchsClustering.pdf", height=7, width=7);
@@ -359,23 +358,23 @@ head(alnArchs[sel,])
 head(exprPerCancer[ubiqGenes,][sel,])
 ## archCentr <- alnArchs[sel,-grep("SYNT", colnames(alnArchs))]
 archCentr <-
-    cbind(alnArchs[sel,-grep("SYNT", colnames(alnArchs))],
-          exprPerCancer[ubiqGenes,setdiff(colnames(exprPerCancer), "SYNT")][sel,])
+    cbind(alnArchs[sel,-grep("SYNT|ALL", colnames(alnArchs))],
+          exprPerCancer[ubiqGenes,setdiff(colnames(exprPerCancer),
+                                          c("SYNT", "ALL"))][sel,])
 
 dudi1 <- dudi.pca(t(archCentr), scale=F, scannf=F, nf=3)
 barplot(dudi1$eig / sum(dudi1$eig))
 
-shapeVec <- c(rep(20, ncol(alnArchs)), rep(2, ncol(exprPerCancer)))
-colVec <- as.numeric(as.factor(gsub("\\.[0-9]$", "", colnames(archCentr))))
+colVec <-
+    c(rep(20, ncol(alnArchs[,-grep("SYNT|ALL", colnames(alnArchs))])),
+      rep(2, ncol(exprPerCancer[,setdiff(colnames(exprPerCancer), c("SYNT", "ALL"))])))
+cTypeFac <- as.factor(gsub("\\.[0-9]$", "", colnames(archCentr)));
+shapeVec <- as.numeric(cTypeFac)
 
 pdf("archCentrPCA.pdf", height=6, width=6);
-plot(dudi1$li[,1:2],
-       pch=colVec## shapeVec
-     , col=colVec)
-legend("bottomright", c("archetype", "centroid"), pch=1:2, col="grey")
-legend("bottomleft", levels(as.factor(gsub("\\.[0-9]$", "",
-                                           colnames(archCentr)))),
-       col=unique(colVec), pch=1)
+plot(dudi1$li[,1:2], pch=shapeVec, col=colVec)
+legend("bottomright", c("archetype", "centroid"), fill=unique(colVec))
+legend("bottomleft", levels(cTypeFac), col="grey", pch=min(shapeVec):max(shapeVec))
 dev.off();
 
 shapeVec3 <- rep(NA, length(shapeVec))
@@ -483,7 +482,9 @@ load("treatPerCancerArch.rda")
 alnTreats <-
     matrix(NA, nrow(treatPerCancerArch[[1]]),
            sum(sapply(archPerCancerList, function(a) { ncol(a) })) -
-           ncol(archPerCancerList[["SYNT"]]));
+           ncol(archPerCancerList[["SYNT"]]) -
+           ncol(archPerCancerList[["ALL"]])
+           );
 rownames(alnTreats) <- rownames(treatPerCancerArch[[1]]);
 
 n <- 0;
@@ -506,9 +507,9 @@ colnames(alnTreats) <-
 alnTreats0 <- t(apply(alnTreats, 1, function(x) { x - mean(x, na.rm=T) }))
 alnTreats0[is.na(alnTreats0)] <- 0;
 
-pdf("treatPerArch.pdf", height=6, width=8);
-heatmap.2(alnTreats0, scale="none", trace="none",
-          col = heat.colors, margins = c(5, 12.5),
+pdf("treatPerArch.pdf", height=6, width=12);
+heatmap.2(alnTreats0[apply(alnTreats, 1, mean) > .1,], scale="none", trace="none",
+          col = heat.colors, margins = c(5, 20),
           hclustfun=function(x) { hclust(x, method="ward.D") })
 dev.off()
 
@@ -977,16 +978,29 @@ pVals <-
                 myArchs[i,] - centerVec[i]
             }))
         rm(exprU); gc();
-        
+
+        nPCsInit <- 10;
         nPCs <- 4;
         if ( is.null(EVsL[[cancerID]]) ) {
-            EVsL[[cancerID]] <- svd(exprU0, nu=nPCs, nv=nPCs)$u[,1:nPCs];
+            EVsL[[cancerID]] <- svd(exprU0, nu=nPCsInit, nv=nPCsInit)$u[,1:nPCsInit];
             save(EVsL, file="allCancers_EVs.rda")
         } else {
             cat("Reusing previously computed eigenvectors.\n")
         }
-        EVs <- EVsL[[cancerID]]
+        EVs <- EVsL[[cancerID]][,1:nPCs];
 
+        exprProjInit <- t(t(EVsL[[cancerID]]) %*% exprU0)
+        write.table(exprProjInit,
+                    file=sprintf("%s_samples_10PCs.csv", cancerID),
+                    quote=F, row.names=F, col.names=F, sep=",");
+        rm(exprProjInit); gc();
+
+        archProjInit <- t(t(EVsL[[cancerID]]) %*% archs0)
+        write.table(archProjInit,
+                    file=sprintf("%s_archetypes_10PCs.csv", cancerID),
+                    quote=F, row.names=F, col.names=F, sep=",");
+        rm(archProjInit);
+        
         exprProj <- t(t(EVs) %*% exprU0)
         archProj <- t(t(EVs) %*% archs0)
         
@@ -996,13 +1010,32 @@ pVals <-
              main=cancerID)
         points(archProj, pch=20, col="blue", cex=2)
 
-        isPRAD <- treatmentsFull[,"cancer_type"] == "PRAD"
-        plot3d(exprProj[isPRAD,1], exprProj[isPRAD,2],
-               exprProj[isPRAD,3], size=5,
+        plot3d(exprProj[,1], exprProj[,2], exprProj[,3],
+               size=3, type="p", alpha=.5,
                col="red", xlab="", ylab="", zlab="")
-        points3d(exprProj[!isPRAD,1], exprProj[!isPRAD,2],
-                 exprProj[!isPRAD,3], size=2)
-        points3d(archProj[,1], archProj[,2], archProj[,3], pch=20, col="blue", size=20)
+        points3d(archProj[,1], archProj[,2], archProj[,3],
+                 col="blue", size=8)
+
+        ## Compute distance from each tumor to each archetype
+        distTtoA <-
+            t(apply(exprProj[,1:3], 1, function(tumor) {
+                apply(archProj[,1:3], 1, function(arch) {
+                    sqrt(sum((tumor - arch)^2))
+                })
+            }))
+        rownames(distTtoA) <-
+            read.table(sprintf("%s_UCSC/patientIDs.list", cancerID))[,1]
+        write.csv(distTtoA,
+                  file=sprintf("%s_dist_tumor_to_arch.csv", cancerID))
+        
+        isPRAD <- treatmentsFull[,"cancer_type"] == "BRCA"
+        plot3d(exprProj[isPRAD,1], exprProj[isPRAD,2],
+               exprProj[isPRAD,3], size=.5, type="s",
+               col="red", xlab="", ylab="", zlab="")
+        points3d(archProj[,1], archProj[,2], archProj[,3],
+                 col="blue", size=8)
+        rgl.points(exprProj[!isPRAD,1], exprProj[!isPRAD,2],
+                   exprProj[!isPRAD,3], size=2, col="black", alpha=.25)
         
         ## Move the last archetype to 0,0:
         exprProjA <- t(apply(exprProj, 1, function(x) { x - archProj[nrow(archProj),] }))
@@ -1012,8 +1045,9 @@ pVals <-
         ## archetypes x dimensions
         thetas <- exprProjA[,1:nrow(archProjA)] %*% solve(archProjA[,1:nrow(archProjA)])
         thetas <- cbind(thetas, apply(thetas, 1, function(x) { 1 - sum(x) }))
-        
+
         minOcc <- 10;
+        if ( cancerID == "ALL" ) { minOcc <- 100; }
         treatOcc <- sort(apply(treatments[,-1], 2, function(x) { sum(x, na.rm=T) }))
         keptTreats <- names(which(treatOcc > minOcc))
         if ( length(keptTreats) == 0 ) { return(NULL) }
@@ -1026,6 +1060,15 @@ pVals <-
         table(treatments[,"best.resp"])
 
         if ( cancerID == "ALL" ) {
+            ## x <- unique(treatmentsFull[,"cancer_type"])[1]
+            ## isBestResp <- 
+            ##     unlist(
+            ##         sapply(unique(treatmentsFull[,"cancer_type"]), function(x) {
+            ##             ## sum(treatmentsFull[,"cancer_type"] == x)
+            ##             treatments[treatmentsFull[,"cancer_type"] == x,
+            ##                        "best.resp"] > respCutOffs[x]
+            ##         })
+            ##         )
             isBestResp <- treatments[,"best.resp"] > median(respCutOffs, na.rm=T)
         } else {
             respCutOff <- respCutOffs[cancerID]
@@ -1047,6 +1090,7 @@ pVals <-
         if ( nrow(glmData) < minOcc ) {
             return(NULL);
         }
+        apply(glmData[,-1], 2, function(x) { sum(as.numeric(x)) })
         summary(glmData)
         i <- "nucleotide.depletion";
         i <- "DNA.damaging";
@@ -1058,7 +1102,9 @@ pVals <-
 
         dir <- testArchResp(glmData, thetas[noNA,], what="direction", minOcc=minOcc)
         p <- testArchResp(glmData, thetas[noNA,], "p-value", minOcc=minOcc)
-        q <- as.numeric(p) * sum(!is.na(p))
+        ## q <- as.numeric(p) * sum(!is.na(p)) #MTC arch x drugs
+        q <- as.numeric(p) * sum(!apply(is.na(p), 2, any)) #MTC drugs
+        ## q <- as.numeric(p) * nrow(p) #MTC arch
         q[q>1] <- 1
 
         q <- matrix(q, nrow(p), ncol(p))

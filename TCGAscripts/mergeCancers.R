@@ -32,9 +32,9 @@ for (i in 1:length(allExpr)) {
 write.table(round(allExprMat, 4), file="expMatrix.csv", quote=F,
             row.names=F, col.names=F, sep=",")
 
-rm(allExpr);
+rm(allExpr); gc();
 decomp <- svd(allExprMat, nu=3, nv=3)
-gc();
+
 
 barplot((decomp$d^2 / sum(decomp$d^2))[1:10], main="% variance explained")
 
@@ -47,61 +47,65 @@ library(rgl); plot3d(exprProj[,1], exprProj[,2], exprProj[,3])
 ##################################################
 ## Merge treatments, M status and cancer types
 
-cancerID <- cancerIDs[1]
-cancerID <- "PRAD"
+## cancerID <- cancerIDs[1]
+## cancerID <- "PRAD"
 
-allClinical <- 
-    lapply(cancerIDs, function(cancerID) {
-        clinical <-
-            read.table(sprintf("../%s_UCSC/discreteClinicalData_reOrdered.tsv",
-                               cancerID),
-                       h=T, as.is=T, sep="\t")
-        Midx <- grep("pathologic_M", colnames(clinical));
-        if ( length(Midx) == 0 ) {
-            Mvec <- rep(NA, nrow(clinical))
-        } else {
-            Mvec <- clinical[,Midx]
-        }
-        cType <- rep(cancerID, nrow(clinical));
-        clinical <-
-            data.frame(
-                cancer_type=cType,
-                pathologic_M=Mvec,
-                clinical[,grep("^treat", colnames(clinical))])
-        return(clinical)
-    })
+## allClinical <- 
+##     lapply(cancerIDs, function(cancerID) {
+##         clinical <-
+##             read.table(sprintf("../%s_UCSC/discreteClinicalData_reOrdered.tsv",
+##                                cancerID),
+##                        h=T, as.is=T, sep="\t")
+##         Midx <- grep("pathologic_M", colnames(clinical));
+##         if ( length(Midx) == 0 ) {
+##             Mvec <- rep(NA, nrow(clinical))
+##         } else {
+##             Mvec <- clinical[,Midx]
+##         }
+##         cType <- rep(cancerID, nrow(clinical));
+##         clinical <-
+##             data.frame(
+##                 cancer_type=cType,
+##                 pathologic_M=Mvec,
+##                 clinical[,grep("^treat", colnames(clinical))])
+##         return(clinical)
+##     })
 
-sapply(allClinical, ncol)
-allClinMat <- allClinical[[1]]
-for (i in 2:length(allClinical)) {
-    allClinMat <- rbind(allClinMat, allClinical[[i]])
-}
+## sapply(allClinical, ncol)
+## allClinMat <- allClinical[[1]]
+## for (i in 2:length(allClinical)) {
+##     allClinMat <- rbind(allClinMat, allClinical[[i]])
+## }
 
-## The number of patients with gene expression should match that with
-## clinical record:
-nrow(allExprMat) == nrow(allClinMat)
+## ## The number of patients with gene expression should match that with
+## ## clinical record:
+## nrow(allExprMat) == nrow(allClinMat)
 
-write.table(allClinMat, file="discreteClinicalData_reOrdered.tsv",
-            quote=F, sep="\t", row.names=F);
+## write.table(allClinMat, file="discreteClinicalData_reOrdered.tsv",
+##             quote=F, sep="\t", row.names=F);
 
 ##################################################
 ## Merge all clinical features
 
 featTypes <- c("discrete", "continuous");
-featType <- featTypes[1]
+featType <- featTypes[2]
 
 for ( featType in featTypes ) {
-    featCount <- table(unlist(sapply(cancerIDs, function(cancerID) {
+    featsByCancer <- sapply(cancerIDs, function(cancerID) {
         clinical <-
             read.table(sprintf("../%s_UCSC/%sClinicalData_reOrdered.tsv",
                                cancerID, featType),
                        h=T, as.is=T, sep="\t")
         colnames(clinical)
-    })))
-    hist(featCount);
+    })
+    featCount <- table(unlist(featsByCancer))
 
-    featCount <- c(featCount, "cancer_type"=10)
-    
+    hist(featCount, seq(0, max(featCount)));
+
+    if ( featType == "discrete" ) {
+        featCount <- c(featCount, "cancer_type"=0)
+    }
+
     allClinMat <- matrix(NA, 0, length(featCount));
     colnames(allClinMat) <- names(featCount)
 
@@ -113,11 +117,13 @@ for ( featType in featTypes ) {
             read.table(sprintf("../%s_UCSC/%sClinicalData_reOrdered.tsv",
                                cancerID, featType),
                        h=T, as.is=T, sep="\t")
-        cType <- rep(cancerID, nrow(clinical));
-        clinical <-
-            data.frame(
-                cancer_type=cType,
-                clinical);
+        if ( featType == "discrete" ) {
+            cType <- rep(cancerID, nrow(clinical));
+            clinical <-
+                data.frame(
+                    cancer_type=cType,
+                    clinical);
+        }
         clinicalPadded <- matrix(NA, nrow(clinical), length(featCount));
         colnames(clinicalPadded) <- names(featCount);
         clinicalPadded <- as.data.frame(clinicalPadded);
@@ -126,7 +132,18 @@ for ( featType in featTypes ) {
         allClinMat <- rbind(allClinMat, clinicalPadded)
     }
 
-    barplot(table(allClinMat[,"cancer_type"]), las=3)
+    ## For features that are cancer specific (one occurrence only), we
+    ## tag the feature name with the cancer type
+    toRename <- "psa_value";
+    for ( toRename in names(featCount)[which(featCount == 1)] ) {
+        doesFeatBelongTo <- sapply(featsByCancer, function(x) {
+            any(x == toRename) })
+        belongsTo <- names(doesFeatBelongTo)[doesFeatBelongTo]
+        colnames(allClinMat)[colnames(allClinMat) == toRename] <-
+            sprintf("%s.%s", belongsTo, toRename)
+    }
+
+    if ( featType == "discrete" ) { barplot(table(allClinMat[,"cancer_type"]), las=3)}
     ## The number of patients with gene expression should match that with
     ## clinical record:
     if ( nrow(allExprMat) != nrow(allClinMat) ) {
@@ -135,6 +152,70 @@ for ( featType in featTypes ) {
     write.table(allClinMat,
                 file=sprintf("%sClinicalData_reOrdered.tsv", featType),
                 quote=F, sep="\t", row.names=F);
+
+    if ( featType == "continuous" ) {
+        write.table(allClinMat,
+                    file=sprintf("%sClinicalData_reOrdered_justData.csv", featType),
+                    quote=F, row.names=F, col.names=F, sep=",", na="NaN");
+        write.table(colnames(allClinMat),
+                    file=sprintf("%sClinicalData_reOrdered_featNames.list", featType),
+                    quote=F, row.names=F, col.names=F, sep=",");
+    }
 }
 
+##################################################
+## Merge all mutations
+
+mutsByCancer <- sapply(cancerIDs, function(cancerID) {
+    mutations <-
+        read.table(sprintf("../%s_UCSC/mutMatrix_reOrdered_booleanized_geneNames.list",
+                           cancerID), h=F, as.is=T)
+    mutations <- mutations[grep("=1$", mutations[,1]),1]
+})
+mutsCount <- table(unlist(mutsByCancer))
+
+hist(mutsCount, seq(0, max(mutsCount)));
+
+## Let's keep all mutations re-occuring it at least 5 cancer subtypes,
+## which gives us 500 mutations to work with and see if ParTI eats
+## it.
+mutsCount <- mutsCount[mutsCount >= 7]
+length(mutsCount)
+
+allMutMat <- matrix(NA, 0, length(mutsCount));
+colnames(allMutMat) <- names(mutsCount)
+
+cancerID <- cancerIDs[1]
+cancerID <- "PRAD"
+
+for ( cancerID in cancerIDs ) {
+    cat(sprintf("Importing mutations from %s\n", cancerID))
+    mutations <-
+        read.table(sprintf("../%s_UCSC/mutMatrix_reOrdered_booleanized_justData.csv",
+                           cancerID), h=F, as.is=T, sep=",")
+    colnames(mutations) <-
+        read.table(sprintf("../%s_UCSC/mutMatrix_reOrdered_booleanized_geneNames.list",
+                           cancerID), h=F, as.is=T, sep=",")[,1]
+
+    mutationsPadded <- matrix(NA, nrow(mutations), length(mutsCount));
+    colnames(mutationsPadded) <- names(mutsCount);
+    mutationsPadded <- as.data.frame(mutationsPadded);
+
+    toKeepMuts <- intersect(colnames(mutations), names(mutsCount))
+    mutationsPadded[,toKeepMuts] <- mutations[,toKeepMuts]
+
+    allMutMat <- rbind(allMutMat, mutationsPadded)
+}
+
+## The number of patients with gene expression should match that with
+## mutation record:
+if ( nrow(allExprMat) != nrow(allMutMat) ) {
+    stop("Mismatch between number of patients with gene expression and treatments")
+}
+write.table(allMutMat,
+            file="mutMatrix_reOrdered_booleanized_justData.csv",
+            quote=F, sep=",", row.names=F, col.names=F, na="NaN");
+write.table(colnames(allMutMat),
+            file="mutMatrix_reOrdered_booleanized_geneNames.list",
+            quote=F, sep=",", row.names=F, col.names=F);
 

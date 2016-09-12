@@ -1,6 +1,6 @@
 rm(list=ls())
 
-myTab <- read.table("cancerArchFracP_noHealthy.tsv", h=F, sep="\t", as.is=T)
+myTab <- read.table("cancerArchFracP.tsv", h=F, sep="\t", as.is=T)
 cancers <- unique(myTab[,1])
 nArchs <- unique(myTab[,2])
 
