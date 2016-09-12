@@ -31,6 +31,11 @@ medianDifference  = zeros(Numarchs,numFeatures);
 meanDifference  = zeros(Numarchs,numFeatures);
 PoverQ  = zeros(Numarchs,numFeatures);
 
+%Turn strings into doubles
+if ischar(EnMatCont{1,1})
+    EnMatCont = cell2mat(cellfun(@(y)str2num(y),EnMatCont,'UniformOutput',0));
+end
+
 %On Each Archetype
 for arch = 1:Numarchs
    %Divide to bins
