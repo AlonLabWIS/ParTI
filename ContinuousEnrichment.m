@@ -32,7 +32,7 @@ meanDifference  = zeros(Numarchs,numFeatures);
 PoverQ  = zeros(Numarchs,numFeatures);
 
 %Turn strings into doubles
-if ischar(EnMatCont{1,1})
+if iscell(EnMatCont) & ischar(EnMatCont{1,1})
     EnMatCont = cell2mat(cellfun(@(y)str2num(y),EnMatCont,'UniformOutput',0));
 end
 
