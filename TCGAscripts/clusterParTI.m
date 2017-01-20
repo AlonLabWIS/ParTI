@@ -1,8 +1,8 @@
-%% ParTI pipeline for TCGA datasetson
+%% ParTI pipeline for TCGA datasets
 addpath ../ParTI/
 origPath = pwd;
-% myQuantile = 0.0;
-% nArchetypes = 4;
+myQuantile = 0.4;
+nArchetypes = 4;
 
 global ForceNArchetypes; ForceNArchetypes = nArchetypes;
 
@@ -46,8 +46,8 @@ geneNames = geneNames(selGenes,:);
 cell2csv('geneNamesAfterExprFiltering.list', geneNames);
 
 binSize=.1; % 10% by default
-if length(selGenes) * binSize > 100
-    binSize = 100 / length(selGenes);
+if size(geneExpression,1) * binSize > 100
+    binSize = 100 / size(geneExpression,1);
 end
 
 %% We import the sample attributes, i.e. the clinical data on patients
@@ -100,23 +100,27 @@ if exist(strcat(origPath, '/arcs_dims.tsv'), 'file') == 2
     arc = arcs_dims;
     load(strcat(origPath, '/arcsOrig_genes.tsv'))
     arcOrig = arcsOrig_genes;
-else
-    [arc, arcOrig, ~] = ParTI_lite(geneExpression);
+else 
+    [arc, arcOrig, pc, coefs1] = ParTI_lite(geneExpression);
     save(strcat(origPath, '/arcs_dims.tsv'), 'arc', '-ascii')
     save(strcat(origPath, '/arcsOrig_genes.tsv'), 'arcOrig', '-ascii')
+    save(strcat(origPath, '/pcsOrig_samplesXdims.tsv'), 'pc', '-ascii')
+    save(strcat(origPath, '/projOrig_varsXdims.tsv'), 'coefs1', '-ascii')
 end
+
+clear pc coefs1;
 
 %% Clinical features
 close all
-ParTI_lite(geneExpression, 1, ForceNArchetypes, discrAttrNames, ...
-    discrAttr, 0, contAttrNames, contAttr, [], 0.1, ...
+ParTI_lite(geneExpression, 1, size(arcOrig,1), discrAttrNames, ...
+    discrAttr, 0, contAttrNames, contAttr, [], binSize, ...
     strcat(origPath, '/clinicalEnrichment'), arcOrig);
 
 %% MSigDB gene groups
 clear discrAttr contAttr;
 close all
-ParTI_lite(geneExpression, 1, ForceNArchetypes, [], [], ...
-    0, GONames, GOExpression, [], 0.1, ...
+ParTI_lite(geneExpression, 1, size(arcOrig,1), [], [], ...
+    0, GONames, GOExpression, [], binSize, ...
     strcat(origPath, '/MSigDBenrichment'), arcOrig);
 
 %% Mutations
@@ -132,8 +136,8 @@ posMut = find(cellfun('length', regexp(mutNames, '=1$')') > 0);
                 5);
 
 close all
-ParTI_lite(geneExpression, 1, ForceNArchetypes, mutNames, ...
-    mut, -1, [], [], [], 0.1, ...
+ParTI_lite(geneExpression, 1, size(arcOrig,1), mutNames, ...
+    mut, -1, [], [], [], binSize, ...
     strcat(origPath, '/mutEnrichment'), arcOrig);
 
 close all
@@ -149,8 +153,8 @@ cop = dlmread(strcat(origPath, '/copMatrix_reOrdered_booleanized_justData.csv'),
 copNames = importdata(strcat(origPath, '/copMatrix_reOrdered_booleanized_geneNames.list'));
 
 close all
-ParTI_lite(geneExpression, 1, ForceNArchetypes, copNames, cop, ...
-    0, [], [], [], 0.1, ...
+ParTI_lite(geneExpression, 1, size(arcOrig,1), copNames, cop, ...
+    0, [], [], [], binSize, ...
     strcat(origPath, '/cnvEnrichment'), arcOrig);
 
 
