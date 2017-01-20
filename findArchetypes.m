@@ -1,4 +1,4 @@
-function [DataPCA,meanClstErrs,realArchs,ArchsErrors,PvalueRatio]=findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns)
+function [DataPCA,meanClstErrs,realArchs,ArchsErrors,PvalueRatio,coefs1]=findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns)
 %Inputs
 % 1. Data points is the values of different traits (e.g. expression
 % level of genes) - each sample is a row, each trait (gene) is a column

@@ -1,4 +1,4 @@
-function [arc, arcOrig, pc] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,GOcat2Genes,binSize,OutputFileName,arcOrig)
+function [arc, arcOrig, pc, coefs1] = ParTI_lite(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,GOcat2Genes,binSize,OutputFileName,arcOrig)
 %% Inputs
 % 1. DataPoints, double matrix with the values of different traits 
 % (the coordinates, e.g. expression level of genes). Each sample is a row, 
@@ -114,7 +114,7 @@ if exist('lowIterations', 'var') && ~isempty(lowIterations)
 end
 
 if size(arcOrig,1) == 0
-    [pc, arc, arcOrig] = findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns);
+    [pc, arc, arcOrig,~,~,coefs1] = findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns);
 else
     %We allow passing archetypes so that indexing can stay constant from
     %run to run
