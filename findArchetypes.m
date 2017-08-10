@@ -110,16 +110,19 @@ TotESV1 = varexpl*(sum(variances(1:dim))/sum(variances));
 % plot the ESV curve to extract the desired dimension
 figure;
 plot(2:dim+1,100*TotESV1,'.-','linewidth',2,'MarkerSize',20);
-title('ESV for different dimensions','fontsize',14);
-xlabel('Number of Archetypes','fontsize',14);ylabel('% variability explained','fontsize',14);
-if exist('savefig')
-    savefig([OutputFileName,'_ESV.fig']);
+title('ESV for different numbers of archetypes','fontsize',14);
+xlabel('Number of archetypes','fontsize',14);ylabel('% variability explained','fontsize',14);
+if exist('savefig') == 2
+    savefig([OutputFileName,'_cumESV.fig']);
 end
 
 figure;
 plot(2:dim+1,diff([0 100*TotESV1]),'.-','linewidth',2,'MarkerSize',20);
 title('ESV for each archetype','fontsize',14);
-xlabel('Number of Archetypes','fontsize',14);ylabel('% variability explained','fontsize',14);
+xlabel('Number of archetypes','fontsize',14);ylabel('% variability explained','fontsize',14);
+if exist('savefig')
+    savefig([OutputFileName,'_ESV.fig']);
+end
 
 %% Get the desired dimension from the user
 if exist('ForceNArchetypes','var') && ~isempty(ForceNArchetypes)
