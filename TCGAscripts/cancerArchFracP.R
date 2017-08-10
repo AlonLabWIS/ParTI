@@ -1,12 +1,56 @@
 rm(list=ls())
 
+library(tidyverse)
+
+tag <- "_withNormal";
+tag <- "_withoutNormal";
+tag <- "_withoutNormal6";
+tag <- "";
+
+myTab <- read_tsv(sprintf("cancerArchFracP%s.tsv", tag), col_names=F) %>%
+    rename(cancerType=X1, nArch=X2, quantile=X3, p=X4) %>%
+    mutate(nArch=as.factor(nArch)) %>%
+    filter(nArch != 2) %>%
+    filter(nArch != 6) %>% filter(cancerType != "ALL_UCSC")
+myTab <-
+    inner_join(myTab, 
+               myTab %>% group_by(cancerType) %>%
+               summarize(avgLogP=mean(log(p + 1e-3)))) %>%
+    arrange(avgLogP, nArch, quantile)
+myTab <-
+    myTab %>%
+    mutate(cancerType=toupper(gsub(" UCSC", "", gsub("_", " ", cancerType))))
+
+ggplot(myTab %>% mutate(p=p+1e-3) %>% rename(`# archetypes`=nArch)) +
+    geom_line(aes(x=quantile, y=p, col=`# archetypes`, group=`# archetypes`)) +
+    scale_y_log10() +
+    labs(x="fraction of low-expressed gene excluded",
+         y="p-value") +
+    facet_wrap(~ cancerType)
+ggsave(sprintf("cancerArchFracP%s.pdf", tag), height=6, width=10)
+
+myTab %>%
+    filter(p<.01/(10*3)) %>% group_by(cancerType, nArch) %>%
+    summarize(n=n(),
+              range=sprintf("[%.1f - %.1f]", min(quantile), max(quantile)),
+              p=exp(mean(log(p+1e-3)))) %>% filter(n>=3) %>%
+    arrange(cancerType, desc(n))
+
+myTab %>% filter(p<.01/(10*3)) %>% group_by(cancerType, nArch) %>%
+    summarize(n=n()) %>% filter(n>=3) %>% select(cancerType) %>% unique()
+
+##################################################
+## Previous version of same script
+
 myTab <- read.table("cancerArchFracP.tsv", h=F, sep="\t", as.is=T)
+
 cancers <- unique(myTab[,1])
 nArchs <- unique(myTab[,2])
 
 sortedCancers <-
     sort(sapply(cancers, function(x) {
-        mean(log(myTab[myTab[,3] == .5 & myTab[,1] == x, 4] + .001))
+        ## mean(log(myTab[myTab[,3] == .5 & myTab[,1] == x, 4] + .001))
+        mean(log(myTab[myTab[,1] == x, 4] + .001))
     }))
 
 cancers <- names(sortedCancers)

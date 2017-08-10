@@ -22,7 +22,7 @@ mv tmp.tsv copMatrix.tsv
 
 
 # Reorder mutations and clinical data
-( echo sampleID; cat patientIDs.list ) > tmp.list
+( echo sampleID; cat patientIDs.list ) > patientIDs.tab
 
 ### Somatic mutations
 # nMutations=`wc -l $mutFile | sed -e 's/ .*$//g'`
@@ -30,14 +30,14 @@ mv tmp.tsv copMatrix.tsv
 
 # nMutations=`head -1 mutMatrix.tsv | tr '\t' '\n' | wc -l`
 # fieldSel=\'3-$nMutations\'
-# leftJoin.pl tmp.list mutMatrix.tsv 1 1 $fieldSel NaN > mutMatrix_reOrdered.tsv
+# leftJoin.pl patientIDs.tab mutMatrix.tsv 1 1 $fieldSel NaN > mutMatrix_reOrdered.tsv
 # tail -n +2 mutMatrix_reOrdered.tsv | sed -e 's/\t/,/g' > mutMatrix_reOrdered_justData.csv
 # head -n 1 mutMatrix_reOrdered.tsv | sed -e 's/\t/\n/g' > mutMatrix_reOrdered_geneNames.list
 
 nMutations=`head -1 mutMatrix.tsv | tr '\t' '\n' | wc -l`
 fieldSel=\'2-$nMutations\'
-leftJoin.pl tmp.list mutMatrix.tsv 1 1 $fieldSel NaN > mutMatrix_reOrdered.tsv
-./booleanizeDiscMatrix.pl -in mutMatrix_reOrdered.tsv -v 1 -f 1 -g 0 -r -verbose -o mutMatrix_reOrdered_booleanized.tsv
+leftJoin.pl patientIDs.tab mutMatrix.tsv 1 1 $fieldSel NaN > mutMatrix_reOrdered.tsv
+./booleanizeDiscMatrix.pl -in mutMatrix_reOrdered.tsv -l ~/work/cancerTaskAtlas/SandersNatGenetics2013/cancer_genes.list -v 1 -f 1 -g 0 -r -verbose -o mutMatrix_reOrdered_booleanized.tsv
 tail -n +2 mutMatrix_reOrdered_booleanized.tsv | cut -f 2- | sed -e 's/\t/,/g' > mutMatrix_reOrdered_booleanized_justData.csv
 head -n 1 mutMatrix_reOrdered_booleanized.tsv | cut -f 2- | sed -e 's/\t/\n/g' > mutMatrix_reOrdered_booleanized_geneNames.list
 
@@ -54,8 +54,8 @@ head -n 1 mutMatrix_reOrdered_booleanized.tsv | cut -f 2- | sed -e 's/\t/\n/g' >
 
 nCopies=`head -1 copMatrix.tsv | tr '\t' '\n' | wc -l`
 fieldSel=\'2-$nCopies\'
-leftJoin.pl tmp.list copMatrix.tsv 1 1 $fieldSel NaN > copMatrix_reOrdered.tsv
-./booleanizeDiscMatrix.pl -in copMatrix_reOrdered.tsv -e 10 -verbose -o copMatrix_reOrdered_booleanized.tsv
+leftJoin.pl patientIDs.tab copMatrix.tsv 1 1 $fieldSel NaN > copMatrix_reOrdered.tsv
+./booleanizeDiscMatrix.pl -in copMatrix_reOrdered.tsv -l ~/work/cancerTaskAtlas/SandersNatGenetics2013/cancer_genes.list -e 1 -verbose -o copMatrix_reOrdered_booleanized.tsv
 tail -n +2 copMatrix_reOrdered_booleanized.tsv | cut -f 2- | sed -e 's/\t/,/g' > copMatrix_reOrdered_booleanized_justData.csv
 head -n 1 copMatrix_reOrdered_booleanized.tsv | cut -f 2- | sed -e 's/\t/\n/g' > copMatrix_reOrdered_booleanized_geneNames.list
 
@@ -64,7 +64,8 @@ head -n 1 copMatrix_reOrdered_booleanized.tsv | cut -f 2- | sed -e 's/\t/\n/g' >
 nClinical=`head -1 $clinicalFile | sed -e 's/[^\t]//g' | wc -c`
 fieldSel=\'3-`echo $nClinical + 1 | bc`\'
 ./add1missingField.pl < $clinicalFile > tmp2.tsv
-leftJoin.pl tmp.list tmp2.tsv 1 1 $fieldSel NaN > clinicalData_reOrdered.tsv
+leftJoin.pl patientIDs.tab tmp2.tsv 1 1 $fieldSel NaN > clinicalData_reOrdered.tsv
+rm tmp2.tsv
 
 cp -v clinicalData_reOrdered.tsv discreteClinicalData_reOrdered.tsv
 libreoffice --calc discreteClinicalData_reOrdered.tsv
@@ -76,6 +77,7 @@ read
 # Post-process discrete features to collapse features with multiple entries for a single patient
 ./collapseMultipleModalities.pl < discreteClinicalData_reOrdered.tsv > tmp.tsv
 ./add1missingField.pl < tmp.tsv > discreteClinicalData_reOrdered_withoutTreatment.tsv
+rm tmp.tsv
 # mv tmp.tsv discreteClinicalData_reOrdered.tsv
 
 # We'll convert tabs to newlines automatically so we don't have to do it by hand for each cancer 
@@ -83,6 +85,7 @@ tr '\t' '\n' < continuousFeatures.list > tmp.list
 mv tmp.list continuousFeatures.list
 
 ./extractContinuousFeatures.pl
+R --no-save < addSNVandCNAcount.R
 tail -n +2 continuousClinicalData_reOrdered.tsv | sed -e 's/\t/,/g' > continuousClinicalData_reOrdered_justData.csv
 head -n 1 continuousClinicalData_reOrdered.tsv | sed -e 's/\t/\n/g' > continuousClinicalData_reOrdered_featNames.list
 

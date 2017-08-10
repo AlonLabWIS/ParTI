@@ -5,8 +5,11 @@ use POSIX;
 use Pod::Usage;
 use Getopt::Long;
 
+use List::MoreUtils qw(uniq);
+
 my $inFile = "inMatrix.tsv";
 my $outFile = "outMatrix.tsv";
+my $geneListFile = "";
 my $value = 1;
 my $valFreq = -1;
 my $entropyTop = -1;
@@ -19,6 +22,7 @@ my $man = 0;
 GetOptions("verbose!" => \$verbose,
            "in|i=s" => \$inFile,
            "out|o=s" => \$outFile,
+	   "genelist|l=s" => \$geneListFile,
 	   "value|v=s" => \$value,
 	   "valFreq|f=f" => \$valFreq, #in %
 	   "entropyTop|e=f" => \$entropyTop, #in %
@@ -65,13 +69,30 @@ while (<E>) {
 close E;
 
 # print STDERR "Patients: ".join(", ", @patientIDs)."\n" if $verbose;
+my @toKeep;
 
-my @toKeep = 0..$#genes;
+if ( $geneListFile ne "" ) {
+    print STDERR "Keeping genes that show up in '".$geneListFile."'\n";
+    my %keptGenes = ();
+    open F, "<$geneListFile" || 
+	die("Could not read from $geneListFile.\n");
+    while (<F>) {
+	chomp;
+	$keptGenes{$_} = 1;
+    }
+    close F;
+    
+    @toKeep = ();
+    foreach my $i (0..$#genes) {
+	push @toKeep, $i if exists $keptGenes{$genes[$i]};	
+    }
+    print STDERR "-> will keep ".@toKeep." genes from list.\n";
+}
 
 if ( $valFreq > 0 ) {
-    print STDERR "Keeping only columns for which the value '".$value.
+    print STDERR "Keeping columns for which the value '".$value.
 	"' occurs in at least ".$valFreq."% of the records.\n";
-    @toKeep = ();
+    # @toKeep = ();
     foreach my $i (0..$#genes) {
 	my $nMatches = 0;
 	foreach my $j (0..$#patientIDs) {
@@ -79,10 +100,12 @@ if ( $valFreq > 0 ) {
 	}
 	push @toKeep, $i if ( $nMatches / @patientIDs ) > ( $valFreq / 100 );
     }
-} elsif ( $entropyTop > 0 ) {
-    print STDERR "Keeping only the ".$entropyTop."% columns with ".
+}
+
+if ( $entropyTop > 0 ) {
+    print STDERR "Keeping the ".$entropyTop."% columns with ".
 	"highest entropy\n";
-    @toKeep = ();
+    # @toKeep = ();
     my @entropies = ();
     foreach my $i (0..$#genes) {
 	$entropies[$i] = 0;
@@ -106,15 +129,22 @@ if ( $valFreq > 0 ) {
 	# print STDERR "c: ".join(", ", @counts)." -> ".$entropies[$i]."\n";
     }
     # print STDERR "Entropies: ".join(", ", @entropies[0..5]).", ...\n";
-    @toKeep = sort { $entropies[$b] <=> $entropies[$a] } 0..$#entropies;
-    my $nKept = ceil(@toKeep * $entropyTop / 100);
-    @toKeep = @toKeep[0..($nKept-1)];
+    my @newToKeep = sort { $entropies[$b] <=> $entropies[$a] } 0..$#entropies;
+    my $nKept = ceil(@newToKeep * $entropyTop / 100);
+    @newToKeep = @newToKeep[0..($nKept-1)];
     print STDERR "Highest entropies: ".
-	join(", ", @entropies[@toKeep[0..5]]).", ...\n" if $verbose;
+	join(", ", @entropies[@newToKeep[0..5]]).", ...\n" if $verbose;
+    push @toKeep, @newToKeep;
 }
 
-print STDERR "Keept ".@toKeep." / ".@genes." features\n".
-    "Now booleanizing feature matrix.\n" if $verbose;
+if ( $geneListFile eq "" && $valFreq <= 0 && $entropyTop <= 0 ) {
+   print STDERR "No specified filter: will keep all ".@genes." features.\n";
+   @toKeep = 0..$#genes;
+} else {
+   @toKeep = uniq @toKeep;
+   print STDERR "Kept ".@toKeep." / ".@genes." features\n".
+      "Now booleanizing feature matrix.\n" if $verbose;
+}
 
 my @boolGenes = ();
 my @boolMatrix = ();

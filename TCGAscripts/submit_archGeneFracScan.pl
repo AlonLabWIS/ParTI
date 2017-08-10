@@ -30,8 +30,8 @@ pod2usage(-exitstatus => 0, -verbose => 2) if $man;
 for ( my $nArch = $nArchetypesMin; 
       $nArch <= $nArchetypesMax; 
       $nArch++ ) {
-    for ( my $frac = 0; $frac < 1.0; $frac += $fracStep ) {
-	my $jobName = sprintf("scanArchFrac_a%d_f%.2f", $nArch, $frac);
+    for ( my $frac = 0; $frac < 0.99; $frac += $fracStep ) {
+	my $jobName = sprintf("scanArchFrac_%s_a%d_f%.2f", $tag, $nArch, $frac);
 	my $mFile = sprintf("%s.m", $jobName);
 	my $bFile = sprintf("%s.sh", $jobName);
 	# my $outFile = sprintf("%s.out", $jobName);

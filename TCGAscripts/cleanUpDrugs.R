@@ -230,7 +230,6 @@ sort(table(splitDrugs[sapply(stdDrugs, length) == 0]))
 ## }
 
 ## We iterate through all patients
-## FIXME This doesn't include radiotherapy...
 drugLabels <- unique(drugDic[,2]);
 drugLabels <- c(drugLabels, "radiotherapy");
 
@@ -381,7 +380,8 @@ write.table(treatTab, file="treatTab.tsv", row.names=F, sep="\t", quote=F)
 
 samplesOrdered <-
     read.table("patientIDs.list", as.is=T, h=F)[,1]
-sId <- samplesOrdered[1]
+sId <- samplesOrdered[2]
+sId <- "TCGA-EL-A3ZS-11"
 treatReordered <-
     t(sapply(samplesOrdered,
              function(sId) {
@@ -396,7 +396,8 @@ treatReordered <-
                  }
              }))
 
-colnames(treatReordered) <- colnames(treatTab)[-1]
+## sum(colnames(treatReordered) != colnames(treatTab)[-1])
+## colnames(treatReordered) <- colnames(treatTab)[-1]
 head(treatReordered)
 
 ## treatReordered <- as.data.frame(treatReordered)

@@ -6,144 +6,153 @@ library(gplots)
 library(ade4)
 library(rgl)
 
-## TCGAfracNarchs <- read.table("TCGA_frac_nArchs.tab", as.is=T, row.names=1)
-## colnames(TCGAfracNarchs) <- c("quantile", "nArchetypes");
-## cancerIDs <- rownames(TCGAfracNarchs);
+TCGAfracNarchs <- read.table("TCGA_frac_nArchs.tab", as.is=T, row.names=1)
+colnames(TCGAfracNarchs) <- c("quantile", "nArchetypes");
+cancerIDs <- rownames(TCGAfracNarchs);
 
-## cancerID <- cancerIDs[2]
-## cancerID <- "GBM"
-## treatPerCancer <-
-##     sapply(cancerIDs, function(cancerID) {
-##         discrete <-
-##             read.table(
-##                 sprintf("%s_UCSC/treatTab.tsv",
-##                         cancerID), as.is=T, h=T, sep="\t")[,c(-1, -2)]
-##         apply(discrete, 2, function(x) { mean(x, na.rm=T) })
-##     })
+cancerID <- cancerIDs[2]
+cancerID <- "GBM"
+treatPerCancer <-
+    sapply(cancerIDs, function(cancerID) {
+        discrete <-
+            read.table(
+                sprintf("%s_UCSC/treatTab.tsv",
+                        cancerID), as.is=T, h=T, sep="\t")[,c(-1, -2)]
+        apply(discrete, 2, function(x) { mean(x, na.rm=T) })
+    })
 
-## exprPerCancer <-
-##     sapply(cancerIDs, function(cancerID) {
-##         avgExpr <-
-##             read.table(
-##                 sprintf("%s_UCSC/avgExpr.tsv",
-##                         cancerID), as.is=T, h=F, sep="\t")[,1]
+exprPerCancer <-
+    sapply(cancerIDs, function(cancerID) {
+        avgExpr <-
+            read.table(
+                sprintf("%s_UCSC/avgExpr.tsv",
+                        cancerID), as.is=T, h=F, sep="\t")[,1]
+        geneList <-
+            read.table(
+                sprintf("%s_UCSC/geneListExp.list",
+                        cancerID), as.is=T, h=F, sep="\t")[,1]
+        names(avgExpr) <- geneList;
+        return(avgExpr)
+    })
+
+##
+
+## exprCancers <- 
+##     lapply(c(cancerIDs, "ALL"), function(cancerID) {
+##         cat(paste("Loading", cancerID, "expression\n"))
 ##         geneList <-
 ##             read.table(
 ##                 sprintf("%s_UCSC/geneListExp.list",
 ##                         cancerID), as.is=T, h=F, sep="\t")[,1]
-##         names(avgExpr) <- geneList;
-##         return(avgExpr)
-##     })
-
-## ## exprCancers <- 
-## ##     lapply(c(cancerIDs, "ALL"), function(cancerID) {
-## ##         cat(paste("Loading", cancerID, "expression\n"))
-## ##         geneList <-
-## ##             read.table(
-## ##                 sprintf("%s_UCSC/geneListExp.list",
-## ##                         cancerID), as.is=T, h=F, sep="\t")[,1]
-## ##         expr <- read.csv(sprintf("%s_UCSC/expMatrix.csv", cancerID),
-## ##                          as.is=T, h=F)
-## ##         colnames(expr) <- geneList;
-## ##         return(expr)
-## ##     })
-## ## names(exprCancers) <- c(cancerIDs, "ALL")
-## ## save(exprCancers, file="exprCancers.rda")
-## load("exprCancers.rda")
-
-## ## archPerCancerList <-
-## ##     sapply(c(cancerIDs, "ALL"), function(cancerID) {
-## ##         cat(paste("Loading", cancerID, "archetypes\n"))
-## ##         arcsOrig <-
-## ##             t(read.table(
-## ##                 sprintf("%s_UCSC/arcsOrig_genes.tsv",
-## ##                         cancerID), as.is=T, h=F))
-## ##         geneList <-
-## ##             read.table(
-## ##                 sprintf("%s_UCSC/geneNamesAfterExprFiltering.list",
-## ##                         cancerID), as.is=T, h=F, sep="\t")[,1]
-## ##         rownames(arcsOrig) <- geneList;
-## ##         return(arcsOrig)
-## ##     })
-## ## save(archPerCancerList, file="archPerCancerList.rda")
-## load("archPerCancerList.rda")
-
-## ## Keep only genes that are present in all the archetypes
-## geneTab <- table(unlist(sapply(archPerCancerList, function(x) { rownames(x) })))
-## ## These genes are found in all archetypes of all cancer
-## ubiqGenes <- names(geneTab)[geneTab == (length(cancerIDs)+1)] 
-
-## alnArchs <-
-##     matrix(NA, length(ubiqGenes), 
-##            sum(sapply(archPerCancerList, function(a) { ncol(a) })));
-## rownames(alnArchs) <- ubiqGenes;
-## n <- 0;
-## for (i in 1:length(archPerCancerList)) {
-##     ## Normalize out abs gene expression inside each cancer
-##     ## archPerCancerList[[i]] <-
-##     ##     t(apply(archPerCancerList[[i]], 1, function(x) {x - mean(x)}))
-##     for (j in 1:ncol(archPerCancerList[[i]]) ) {
-##         n <- n + 1;
-##         alnArchs[,n] <- archPerCancerList[[i]][ubiqGenes,j]
-##     }
-## }
-
-## a <- names(archPerCancerList)[1]
-## colnames(alnArchs) <-
-##     unlist(sapply(names(archPerCancerList), function(a) {
-##         sprintf("%s.%d",
-##                 rep(a, ncol(archPerCancerList[[a]])),
-##                 1:ncol(archPerCancerList[[a]])
-##                 )
-##     }))
-
-## ## Compute optimal cut-off on patent response
-## respRanking <- c("Clinical Progressive Disease",
-##                  "Stable Disease", "Partial Response",
-##                  "Complete Response")
-
-## pdf("respCutOffs.pdf", height=3*4, width=4*4)
-## par(mfrow=c(3,4))
-## cancerID <- "GBM"
-## respCutOffs <-
-##     sapply(cancerIDs, function(cancerID) {
-##         cat(paste(cancerID,"\n"))
-        
-##         treatments <- 
+##         geneListAfterFiltering <-
 ##             read.table(
-##                 sprintf("%s_UCSC/discreteClinicalData_reOrdered.tsv",
-##                         cancerID), as.is=T, h=T, sep="\t")
-##         treatments <- treatments[,c(which("treat.patientBestResp" == colnames(treatments)),
-##                                     grep("treat.target.", colnames(treatments)))]
-##         colnames(treatments) <- gsub("^treat.target.", "", colnames(treatments))
-##         colnames(treatments)[1] <- "best.resp";
-
-##         best.respVec <-
-##             sapply(treatments[,"best.resp"], function(x) {
-##                 if ( is.na(x) ) { return(NA) }
-##                 which(respRanking == x)
-##             })
-##         treatments[,"best.resp"] <- best.respVec;
-
-##         if ( ! any(!is.na(best.respVec)) ) { return(NA) }
-        
-##         bp <- barplot(table(as.numeric(best.respVec)), main=cancerID)
-##         respCutOff <- median(best.respVec, na.rm=T);
-##         respCutOff <- respCutOff +
-##             which.min(abs(c(sum(best.respVec < respCutOff - .5, na.rm=T) / sum(!is.na(best.respVec)),
-##                             sum(best.respVec < respCutOff + .5, na.rm=T) /
-##                             sum(!is.na(best.respVec))) - .5)) - 1.5
-##         ## if ( respCutOff == 1 ) {
-##         ##     respCutOff <- 1.5
-##         ## } else if ( respCutOff == 4 ) {
-##         ##     respCutOff <- 3.5
-##         ## }
-##         abline(v=(respCutOff - 1)/(nrow(bp)-1) * diff(range(bp)) + min(bp), lty=2)
-##         return(respCutOff)
+##                 sprintf("%s_UCSC/geneNamesAfterExprFiltering.list",
+##                         cancerID), as.is=T, h=F, sep="\t")[,1]
+##         expr <- read.csv(sprintf("%s_UCSC/expMatrix.csv", cancerID),
+##                          as.is=T, h=F)
+##         colnames(expr) <- geneList;
+##         ## return(expr)
+##         return(expr[,geneListAfterFiltering])
 ##     })
-## dev.off();
+## names(exprCancers) <- c(cancerIDs, "ALL")
+## save(exprCancers, file="exprCancers.rda")
+load("exprCancers.rda")
 
-## save.image("drugVsCancers_init.rda")
+##
+
+## archPerCancerList <-
+##     sapply(c(cancerIDs, "ALL"), function(cancerID) {
+##         cat(paste("Loading", cancerID, "archetypes\n"))
+##         arcsOrig <-
+##             t(read.table(
+##                 sprintf("%s_UCSC/arcsOrig_genes.tsv",
+##                         cancerID), as.is=T, h=F))
+##         geneList <-
+##             read.table(
+##                 sprintf("%s_UCSC/geneNamesAfterExprFiltering.list",
+##                         cancerID), as.is=T, h=F, sep="\t")[,1]
+##         rownames(arcsOrig) <- geneList;
+##         return(arcsOrig)
+##     })
+## save(archPerCancerList, file="archPerCancerList.rda")
+load("archPerCancerList.rda")
+
+## Keep only genes that are present in all the archetypes
+geneTab <- table(unlist(sapply(archPerCancerList, function(x) { rownames(x) })))
+## These genes are found in all archetypes of all cancer
+ubiqGenes <- names(geneTab)[geneTab == (length(cancerIDs)+1)] 
+
+alnArchs <-
+    matrix(NA, length(ubiqGenes), 
+           sum(sapply(archPerCancerList, function(a) { ncol(a) })));
+rownames(alnArchs) <- ubiqGenes;
+n <- 0;
+for (i in 1:length(archPerCancerList)) {
+    ## Normalize out abs gene expression inside each cancer
+    ## archPerCancerList[[i]] <-
+    ##     t(apply(archPerCancerList[[i]], 1, function(x) {x - mean(x)}))
+    for (j in 1:ncol(archPerCancerList[[i]]) ) {
+        n <- n + 1;
+        alnArchs[,n] <- archPerCancerList[[i]][ubiqGenes,j]
+    }
+}
+
+a <- names(archPerCancerList)[1]
+colnames(alnArchs) <-
+    unlist(sapply(names(archPerCancerList), function(a) {
+        sprintf("%s.%d",
+                rep(a, ncol(archPerCancerList[[a]])),
+                1:ncol(archPerCancerList[[a]])
+                )
+    }))
+
+## Compute optimal cut-off on patent response
+respRanking <- c("Clinical Progressive Disease",
+                 "Stable Disease", "Partial Response",
+                 "Complete Response")
+
+pdf("respCutOffs.pdf", height=3*4, width=4*4)
+par(mfrow=c(3,4))
+cancerID <- "GBM"
+respCutOffs <-
+    sapply(cancerIDs, function(cancerID) {
+        cat(paste(cancerID,"\n"))
+        
+        treatments <- 
+            read.table(
+                sprintf("%s_UCSC/discreteClinicalData_reOrdered.tsv",
+                        cancerID), as.is=T, h=T, sep="\t")
+        treatments <- treatments[,c(which("treat.patientBestResp" == colnames(treatments)),
+                                    grep("treat.target.", colnames(treatments)))]
+        colnames(treatments) <- gsub("^treat.target.", "", colnames(treatments))
+        colnames(treatments)[1] <- "best.resp";
+
+        best.respVec <-
+            sapply(treatments[,"best.resp"], function(x) {
+                if ( is.na(x) ) { return(NA) }
+                which(respRanking == x)
+            })
+        treatments[,"best.resp"] <- best.respVec;
+
+        if ( ! any(!is.na(best.respVec)) ) { return(NA) }
+        
+        bp <- barplot(table(as.numeric(best.respVec)), main=cancerID)
+        respCutOff <- median(best.respVec, na.rm=T);
+        respCutOff <- respCutOff +
+            which.min(abs(c(sum(best.respVec < respCutOff - .5, na.rm=T) / sum(!is.na(best.respVec)),
+                            sum(best.respVec < respCutOff + .5, na.rm=T) /
+                            sum(!is.na(best.respVec))) - .5)) - 1.5
+        ## if ( respCutOff == 1 ) {
+        ##     respCutOff <- 1.5
+        ## } else if ( respCutOff == 4 ) {
+        ##     respCutOff <- 3.5
+        ## }
+        abline(v=(respCutOff - 1)/(nrow(bp)-1) * diff(range(bp)) + min(bp), lty=2)
+        return(respCutOff)
+    })
+dev.off();
+
+save.image("drugVsCancers_init.rda")
 
 ## Done Init
 
@@ -241,7 +250,7 @@ minExpr <- rev(sort(apply(exprPerCancer, 1, mean)))[100]
 sel <- apply(exprPerCancer, 1, mean) >= minExpr
 sel <- rev(order(apply(exprPerCancer[,setdiff(colnames(exprPerCancer), "SYNT")], 1, sd)))[1:1000]
 topExprPerCancer <-
-    t(apply(exprPerCancer[sel,setdiff(colnames(topExprPerCancer), "SYNT")],
+    t(apply(exprPerCancer[sel,setdiff(colnames(exprPerCancer), "SYNT")],
           1, function(x) { x - mean(x) }))
 
 pdf("exprClustering.pdf", height=5, width=5);
@@ -251,7 +260,6 @@ dev.off();
 ##################################################
 
 pdf("distTreatExpr.pdf", height=8, width=8)
-par(mfrow=c(2,2))
 
 par(mfrow=c(2,2))
 dTreat <- as.matrix(dist(t(treatPerCancerS0)))
@@ -402,81 +410,87 @@ cancerID <- cancerIDs[6]
 EVsL <- list();
 load("allCancers_EVs.rda")
 
-## treatPerCancerArch <- list();
-## for ( cancerID in setdiff(cancerIDs, "SYNT") ) {
-##     cat(paste(cancerID,"\n"))
-##     geneList <-
-##         read.table(
-##             sprintf("%s_UCSC/geneListExp.list",
-##                     cancerID), as.is=T, h=F, sep="\t")[,1]
-##     expr <- read.csv(sprintf("%s_UCSC/expMatrix.csv", cancerID),
-##                      as.is=T, h=F)
-##     colnames(expr) <- geneList;
-    
-##     ## exprU <- t(expr[,ubiqGenes])
-##     minExpr <- quantile(apply(expr, 2, mean), TCGAfracNarchs[cancerID,"quantile"]);
-##     exprU <- t(expr[,apply(expr, 2, mean) > minExpr])
-    
-##     ## discreteClinicalData_reOrdered_withTreatment.tsv, select
-##     ## only treat.target
-##     treatments <- 
-##         read.table(
-##             sprintf("%s_UCSC/discreteClinicalData_reOrdered_withTreatment.tsv",
-##                     cancerID), as.is=T, h=T, sep="\t")
-##     treatments <- treatments[,grep("treat.target.", colnames(treatments))]
-##     colnames(treatments) <- gsub("^treat.target.", "", colnames(treatments))
+treatPerCancerArch <- list();
+cancerID <- "BLCA";
+cancerID <- "BRCA";
+for ( cancerID in setdiff(cancerIDs, "SYNT") ) {
+    cat(paste(cancerID,"\n"))
+    geneList <-
+        read.table(
+            sprintf("%s_UCSC/geneListExp.list",
+                    cancerID), as.is=T, h=F, sep="\t")[,1]
+    expr <- read.csv(sprintf("%s_UCSC/expMatrix.csv", cancerID),
+                     as.is=T, h=F)
+    colnames(expr) <- geneList;
 
-##     myArchs <- archPerCancerList[[cancerID]]
-##     if ( sum(rownames(myArchs) != rownames(exprU)) > 0 ) {
-##         stop("genes in archetypes and samples are mis-aligned.\n")
-##     }
+    myArchs <- archPerCancerList[[cancerID]]
+    
+    ## ## exprU <- t(expr[,ubiqGenes])
+    ## minExpr <- quantile(apply(expr, 2, mean), TCGAfracNarchs[cancerID,"quantile"]);
+    ## ## minExpr <- quantile(apply(expr, 2, mean), .4);
+    ## exprU <- t(expr[,apply(expr, 2, mean) > minExpr])
+        
+    exprU <- t(expr[,rownames(myArchs)])
+    
+    ## discreteClinicalData_reOrdered_withTreatment.tsv, select
+    ## only treat.target
+    treatments <- 
+        read.table(
+            sprintf("%s_UCSC/discreteClinicalData_reOrdered_withTreatment.tsv",
+                    cancerID), as.is=T, h=T, sep="\t")
+    treatments <- treatments[,grep("treat.target.", colnames(treatments))]
+    colnames(treatments) <- gsub("^treat.target.", "", colnames(treatments))
+
+    if ( sum(rownames(myArchs) != rownames(exprU)) > 0 ) {
+        stop("genes in archetypes and samples are mis-aligned.\n")
+    }
      
-##     centerVec <- apply(exprU, 1, mean)
-##     exprU0 <-
-##         t(sapply(1:nrow(exprU), function(i) {
-##             exprU[i,] - centerVec[i] }))
-##     archs0 <-
-##         t(sapply(1:nrow(exprU), function(i) {
-##             myArchs[i,] - centerVec[i]
-##         }))
+    centerVec <- apply(exprU, 1, mean)
+    exprU0 <-
+        t(sapply(1:nrow(exprU), function(i) {
+            exprU[i,] - centerVec[i] }))
+    archs0 <-
+        t(sapply(1:nrow(exprU), function(i) {
+            myArchs[i,] - centerVec[i]
+        }))
 
-##     nPCs <- 4;
-##     if ( is.null(EVsL[[cancerID]]) ) {
-##         ## EVsL[[cancerID]] <- eigen(cov(t(exprU0)))$vectors[,1:nPCs]
-##         EVsL[[cancerID]] <- svd(exprU0, nu=nPCs, nv=nPCs)$u[,1:nPCs];
-##         save(EVsL, file="allCancers_EVs.rda")
-##     } else {
-##         cat("Reusing previously computed eigenvectors.\n")
-##     }
-##     EVs <- EVsL[[cancerID]]
+    nPCs <- 4;
+    if ( is.null(EVsL[[cancerID]]) ) {
+        ## EVsL[[cancerID]] <- eigen(cov(t(exprU0)))$vectors[,1:nPCs]
+        EVsL[[cancerID]] <- svd(exprU0, nu=nPCs, nv=nPCs)$u[,1:nPCs];
+        save(EVsL, file="allCancers_EVs.rda")
+    } else {
+        cat("Reusing previously computed eigenvectors.\n")
+    }
+    EVs <- EVsL[[cancerID]]
 
-##     exprProj <- t(t(EVs) %*% exprU0)
-##     archProj <- t(t(EVs) %*% archs0)
+    exprProj <- t(t(EVs) %*% exprU0)
+    archProj <- t(t(EVs) %*% archs0)
     
-##     plot(exprProj[,1], exprProj[,2],
-##          xlim=range(c(exprProj[,1], archProj[,1])),
-##          ylim=range(c(exprProj[,2], archProj[,2])))
-##     points(archProj, pch=20, col="red", cex=2)
+    plot(exprProj[,1], exprProj[,2],
+         xlim=range(c(exprProj[,1], archProj[,1])),
+         ylim=range(c(exprProj[,2], archProj[,2])))
+    points(archProj, pch=20, col="red", cex=2)
 
-##     ## Take the topPct closest to each archetype: use only half
-##     ## the data
-##     topPct <- 1 / (ncol(archs0)+1)
+    ## Take the topPct closest to each archetype: use only half
+    ## the data
+    topPct <- 1 / (ncol(archs0)+1)
     
-##     j <- 1;
-##     archTreatProfile <-
-##         sapply(1:nrow(archProj), function(j) {
-##             dists <- sapply(1:nrow(exprProj), function(i) {
-##                 sqrt(sum((exprProj[i,] - archProj[j,])^2))
-##             })
-##             closestPts <-
-##                 order(dists)[1:round(topPct*length(dists))];
-##             apply(treatments[closestPts,], 2, function(x) {
-##                 mean(x, na.rm=T) })
-##         })
+    j <- 1;
+    archTreatProfile <-
+        sapply(1:nrow(archProj), function(j) {
+            dists <- sapply(1:nrow(exprProj), function(i) {
+                sqrt(sum((exprProj[i,] - archProj[j,])^2))
+            })
+            closestPts <-
+                order(dists)[1:round(topPct*length(dists))];
+            apply(treatments[closestPts,], 2, function(x) {
+                mean(x, na.rm=T) })
+        })
 
-##     treatPerCancerArch[[cancerID]] <- archTreatProfile
-## }
-## save(treatPerCancerArch, file="treatPerCancerArch.rda")
+    treatPerCancerArch[[cancerID]] <- archTreatProfile
+}
+save(treatPerCancerArch, file="treatPerCancerArch.rda")
 
 load("treatPerCancerArch.rda")
 alnTreats <-
@@ -576,15 +590,22 @@ responsesL <- list();
 
 ## treatPerCancerArch <- list();
 
+cancerID <- "BLCA";
 pdf("treatArchResponse.pdf", height=8, width=8);
-for ( cancerID in names(respCutOffs[!is.na(respCutOffs)]) ) {
+for ( cancerID in setdiff(names(respCutOffs[!is.na(respCutOffs)]), "SYNT") ) {
     cat(paste(cancerID,"\n"))
     par(mfrow=c(2,2))
 
     expr <- exprCancers[[cancerID]];
-    minExpr <- quantile(apply(expr, 2, mean), TCGAfracNarchs[cancerID,"quantile"]);
-    exprU <- t(expr[,apply(expr, 2, mean) > minExpr])
+    ## minExpr <- quantile(apply(expr, 2, mean), TCGAfracNarchs[cancerID,"quantile"]);
+    ## exprU <- t(expr[,apply(expr, 2, mean) > minExpr])
+    exprU <- t(expr[,rownames(archPerCancerList[[cancerID]])])
     
+    ## ## exprU <- t(expr[,ubiqGenes])
+    ## minExpr <- quantile(apply(expr, 2, mean), TCGAfracNarchs[cancerID,"quantile"]);
+    ## ## minExpr <- quantile(apply(expr, 2, mean), .4);
+    ## exprU <- t(expr[,apply(expr, 2, mean) > minExpr])
+        
     ## discreteClinicalData_reOrdered_withTreatment.tsv, select
     ## only treat.target
     treatments <- 
@@ -816,7 +837,7 @@ pdf("distRespExprArch.pdf", height=8, width=8)
 par(mfrow=c(2,2))
 
 dTreat <- as.matrix(dist(t(alnResponses0)))
-dTreatN <- dTreat / median(dTreat)
+dTreatN <- dTreat / median(dTreat, na.rm=T)
 image(dTreatN, main="Responses")
 
 dExpr <- as.matrix(dist(t(topExprArchs[,selArchs])))
@@ -924,7 +945,8 @@ testArchResp <- function(glmData, thetas,
 
 pdf("treatArchResponse.pdf", height=8, width=8);
 pVals <-
-    sapply(names(respCutOffs)[!is.na(respCutOffs)], function(cancerID) {
+    sapply(c("ALL", setdiff(names(respCutOffs)[!is.na(respCutOffs)], "SYNT")),
+           function(cancerID) {
         cat(paste(cancerID,"\n"))
         par(mfrow=c(2,2))
         
@@ -933,9 +955,10 @@ pVals <-
         if ( is.na(myQuantile) || myQuantile == 0 ) {
             exprU <- t(expr);
         } else {
-            meanGeneExpr <- apply(expr, 2, mean);
-            minExpr <- quantile(meanGeneExpr, myQuantile);
-            exprU <- t(expr[,meanGeneExpr >= minExpr])
+            ## meanGeneExpr <- apply(expr, 2, mean);
+            ## minExpr <- quantile(meanGeneExpr, myQuantile);
+            ## exprU <- t(expr[,meanGeneExpr >= minExpr])
+            exprU <- t(expr[,rownames(archPerCancerList[[cancerID]])])
         }
         rm(expr);
         
@@ -952,8 +975,9 @@ pVals <-
             cat(sprintf("No metastasis information for %s\n", cancerID))
             Mstatus <- rep("M0", nrow(treatmentsFull))
         }
-        treatments <- treatmentsFull[,c(which("treat.patientBestResp" == colnames(treatmentsFull)),
-                                    grep("treat.target.", colnames(treatmentsFull)))]
+        treatments <-
+            treatmentsFull[,c(which("treat.patientBestResp" == colnames(treatmentsFull)),
+                              grep("treat.target.", colnames(treatmentsFull)))]
         colnames(treatments) <- gsub("^treat.target.", "", colnames(treatments))
         colnames(treatments)[1] <- "best.resp";
 
@@ -1023,8 +1047,8 @@ pVals <-
                     sqrt(sum((tumor - arch)^2))
                 })
             }))
-        rownames(distTtoA) <-
-            read.table(sprintf("%s_UCSC/patientIDs.list", cancerID))[,1]
+        ## rownames(distTtoA) <-
+        ##     read.table(sprintf("%s_UCSC/patientIDs.list", cancerID))[,1]
         write.csv(distTtoA,
                   file=sprintf("%s_dist_tumor_to_arch.csv", cancerID))
         

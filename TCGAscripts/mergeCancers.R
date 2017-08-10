@@ -1,5 +1,7 @@
 rm(list=ls())
 
+library(tidyverse)
+
 cancerIDs <- read.table("../TCGA_frac_nArchs.tab", h=F, as.is=T)[,1]
 cancerIDs <- setdiff(cancerIDs, "SYNT")
 
@@ -10,18 +12,43 @@ cancerID <- cancerIDs[1]
 
 ## pb <- txtProgressBar(style=3);
 ## allExpr <- 
-##     sapply(cancerIDs, function(cancerID) {
-##         expr <- read.table(sprintf("../%s_UCSC/expMatrix.tsv", cancerID),
-##                            h=F, as.is=T, row.names=1)
-##         expr0 <- apply(expr, 2, function(x) { x - mean(x) } )
-##         setTxtProgressBar(pb, which(cancerID == cancerIDs) / length(cancerIDs))
-##         return(expr0);
-##     })
+##     sapply(c("BLCA", "BRCA", "CESC", "COAD", "KIRC", "LGG", "LIHC",
+##              "LUAD", "LUSC", "PRAD", "STAD", "THCA", "UCEC"),
+##            function(cancerID) {
+##                cat(sprintf("Processing %s\n", cancerID))
+##                expr <- read_tsv(sprintf("../%s_UCSC/expMatrix.tsv", cancerID),
+##                                 col_names=F)
+##                expr <- as.data.frame(expr)
+##                rownames(expr) <- expr[,1]
+##                expr <- expr[,-1]
+##                clinProps <-
+##                    read_tsv(sprintf("../%s_UCSC/discreteClinicalData_reOrdered.tsv",
+##                                     cancerID))
+##                isNormal <- clinProps[,"sample_type"] == "Solid Tissue Normal"
+##                isPrimary <- clinProps[,"sample_type"] == "Primary Tumor"
+##                avgExpr <- apply(expr[isPrimary,], 2, mean)
+##                ## avgExpr <- apply(expr, 2, mean)
+##                expr0 <- t(apply(expr, 1, function(x) { x - avgExpr } ))
+               
+##                ## length(apply(expr, 1, function(x) { 1 }))
+##                ## length(apply(expr, 2, function(x) { 1 }))
+               
+##                ## expr <- read.table(sprintf("../%s_UCSC/expMatrix.tsv", cancerID),
+##                ##                    h=F, as.is=T, row.names=1)
+##                ## ## Set the mean expression for each gene to 0:
+##                ## expr0 <- apply(expr, 2, function(x) { x - mean(x) } )
+##                ## setTxtProgressBar(pb, which(cancerID == cancerIDs) / length(cancerIDs))
+##                return(expr0);
+##            })
 ## save(allExpr, file="allExpr.rda");
-load("allExpr.rda");
+load("allExpr.rda"); ## allExpr has all tumors centored on primary tumors
 
+allExpr <- allExpr[cancerIDs]
+## Gene names are already aligned: md5sum *_UCSC/geneListExp.list
 allExprMat <-
-    matrix(NA, sum(sapply(allExpr, function(x) { nrow(x) })), ncol(allExpr[[1]]))
+    matrix(NA,
+           sum(sapply(allExpr, function(x) { nrow(x) })),
+           ncol(allExpr[[1]]))
 n <- 1;
 for (i in 1:length(allExpr)) {
     allExprMat[seq(n, n+nrow(allExpr[[i]])-1),] <- allExpr[[i]]
@@ -29,20 +56,89 @@ for (i in 1:length(allExpr)) {
 }
 
 ## round(allExprMat[1:5,1:5], 4)
-write.table(round(allExprMat, 4), file="expMatrix.csv", quote=F,
-            row.names=F, col.names=F, sep=",")
+## write.table(round(allExprMat, 4), file="expMatrix.csv", quote=F,
+##             row.names=F, col.names=F, sep=",")
+write_csv(as_tibble(round(allExprMat, 4)), "expMatrix.csv", col_names=F)
 
 rm(allExpr); gc();
-decomp <- svd(allExprMat, nu=3, nv=3)
+dim(allExprMat)
 
+cancerID <- cancerIDs[1]
+cancerLabel <- ## only for primary tumors
+    unlist(sapply(cancerIDs, function(cancerID) {
+        clinProps <-
+            read_tsv(sprintf("../%s_UCSC/discreteClinicalData_reOrdered.tsv",
+                             cancerID))
+        rep(cancerID, sum(clinProps[,"sample_type"] == "Primary Tumor"))
+    }))
+
+isPT <- ## for all tumors
+    unlist(sapply(cancerIDs, function(cancerID) {
+        clinProps <-
+            read_tsv(sprintf("../%s_UCSC/discreteClinicalData_reOrdered.tsv", cancerID))
+        clinProps[,"sample_type"] == "Primary Tumor"
+    }))
+
+avgExprPT <- apply(allExprMat[isPT,], 2, function(x) { mean(x) })
+length(apply(allExprMat[isPT,], 1, function(x) { 1 }))
+## only for primary tumors:
+allExprMat0 <- t(apply(allExprMat[isPT,], 1, function(x) { x - avgExprPT }))
+cl <- "BRCA"
+SDbyCancer <- sapply(unique(cancerLabel), function(cl) {
+    ## sd(allExprMat0[cancerLabel == cl,])
+    dcmp <- svd(allExprMat0[cancerLabel == cl,], nu=3, nv=3)
+    sqrt(sum(dcmp$d[1:4]^2))
+})
+allExprMat0 <- 
+    t(sapply(1:nrow(allExprMat0), function(i) {
+        allExprMat0[i,]
+        ## 1000 * allExprMat0[i,] / SDbyCancer[cancerLabel[i]]
+    }))
+dim(allExprMat0)
+
+boxplot(apply(allExprMat0, 1, sd) ~ cancerLabel)
+
+decomp <- svd(allExprMat0, nu=3, nv=3)
 
 barplot((decomp$d^2 / sum(decomp$d^2))[1:10], main="% variance explained")
 
 dim(decomp$v)
-exprProj <- allExprMat %*% decomp$v
-
+exprProj <- allExprMat0 %*% decomp$v
 library(LSD); heatscatter(exprProj[,1], exprProj[,2], add.cont=T)
+
+plot(exprProj[,1], exprProj[,2], col=as.factor(cancerLabel))
+legend("bottomright", levels(as.factor(cancerLabel)),
+       col=1:length(levels(as.factor(cancerLabel))), pch=20)
+plot(exprProj[,2], exprProj[,3], col=as.factor(cancerLabel))
+legend("bottomright", levels(as.factor(cancerLabel)),
+       col=1:length(levels(as.factor(cancerLabel))), pch=20)
 library(rgl); plot3d(exprProj[,1], exprProj[,2], exprProj[,3])
+plot3d(exprProj[,1], exprProj[,2], exprProj[,3],
+       col=as.numeric(as.factor(cancerLabel)))
+
+cancerID <- "LGG"
+cancerID <- "LUSC"
+cancerID <- "LIHC"
+cancerID <- "BLCA"
+cancerID <- "BRCA"
+cancerID <- "COAD"
+
+EVs <-
+    sapply(cancerIDs, function(cancerID) {
+        sel <- cancerLabel == cancerID;
+        plot3d(exprProj[sel,1], exprProj[sel,2], exprProj[sel,3], alpha=.8)
+        points3d(exprProj[!sel,1], exprProj[!sel,2], exprProj[!sel,3],
+                 col="grey", alpha=.5)
+        EVs <- eigen(cov(exprProj[sel,1:3]))$values
+        ## EVs <- cumsum(EVs)
+        return(EVs)
+    })
+ggplot(as_tibble(t(EVs)) %>%
+       mutate(cancer=cancerIDs) %>%
+       gather(EVid, EV, -cancer)) +
+    geom_line(aes(x=EVid, y=EV, col=cancer, group=cancer), size=1.5) +
+    ylim(c(0,3200))
+
 
 ##################################################
 ## Merge treatments, M status and cancer types
@@ -164,6 +260,21 @@ for ( featType in featTypes ) {
 }
 
 ##################################################
+## Merge patientIDs
+
+patientIDs <- sapply(cancerIDs, function(cancerID) {
+    patients <-
+        read_tsv(sprintf("../%s_UCSC/patientIDs.list",
+                         cancerID), col_names=F)
+    as.character(unlist(patients))
+})
+
+if ( sum(sapply(patientIDs, length)) != nrow(allExprMat) ) {
+    stop("number of patients does not match number of tumors")
+}
+write_tsv(as.data.frame(unlist(patientIDs)), "patientIDs.list", col_names=F)
+
+##################################################
 ## Merge all mutations
 
 mutsByCancer <- sapply(cancerIDs, function(cancerID) {
@@ -182,11 +293,26 @@ hist(mutsCount, seq(0, max(mutsCount)));
 mutsCount <- mutsCount[mutsCount >= 7]
 length(mutsCount)
 
-allMutMat <- matrix(NA, 0, length(mutsCount));
-colnames(allMutMat) <- names(mutsCount)
+## Let's add commonly mutated genes
+library(tidyverse); library(stringr)
+keptSNVs <- 
+    unique(
+        c(names(mutsCount),
+          read_csv(str_c("~/work/cancerTaskAtlas/",
+                         "SandersNatGenetics2013/",
+                         "Ciriello2013_ng.2762-S2.csv")) %>% 
+          filter(Type == "MUTATION") %>%
+          transmute(mutation=str_c(`Altered Locus/Gene`, "=1")) %>% 
+          as.data.frame() %>% .[,1]
+          )
+    )
+length(keptSNVs)
+
+allMutMat <- matrix(NA, 0, length(keptSNVs));
+colnames(allMutMat) <- keptSNVs
 
 cancerID <- cancerIDs[1]
-cancerID <- "PRAD"
+cancerID <- "BLCA"
 
 for ( cancerID in cancerIDs ) {
     cat(sprintf("Importing mutations from %s\n", cancerID))
@@ -197,11 +323,11 @@ for ( cancerID in cancerIDs ) {
         read.table(sprintf("../%s_UCSC/mutMatrix_reOrdered_booleanized_geneNames.list",
                            cancerID), h=F, as.is=T, sep=",")[,1]
 
-    mutationsPadded <- matrix(NA, nrow(mutations), length(mutsCount));
-    colnames(mutationsPadded) <- names(mutsCount);
+    mutationsPadded <- matrix(NA, nrow(mutations), length(keptSNVs));
+    colnames(mutationsPadded) <- keptSNVs;
     mutationsPadded <- as.data.frame(mutationsPadded);
 
-    toKeepMuts <- intersect(colnames(mutations), names(mutsCount))
+    toKeepMuts <- intersect(colnames(mutations), keptSNVs)
     mutationsPadded[,toKeepMuts] <- mutations[,toKeepMuts]
 
     allMutMat <- rbind(allMutMat, mutationsPadded)
@@ -215,7 +341,30 @@ if ( nrow(allExprMat) != nrow(allMutMat) ) {
 write.table(allMutMat,
             file="mutMatrix_reOrdered_booleanized_justData.csv",
             quote=F, sep=",", row.names=F, col.names=F, na="NaN");
-write.table(colnames(allMutMat),
+write.table(colnames(allMutMat),        #
             file="mutMatrix_reOrdered_booleanized_geneNames.list",
             quote=F, sep=",", row.names=F, col.names=F);
+
+##################################################
+## Merge treatments
+
+## WARNING this code seems flawed somewhere:
+## TCGA-DK-AA6S-01 and TCGA-EL-A3ZS-11 after merging are wrong!
+
+## treatPerCancer <-
+##     lapply(cancerIDs, function(cancerID) {
+##         discrete <-
+##             read_tsv(
+##                 sprintf("../%s_UCSC/treatments_reOrdered.tab",
+##                         cancerID),
+##                 col_names=c("patient",
+##                             as.character(unlist(
+##                                 read_tsv(
+##                                     sprintf("../%s_UCSC/treatments_reOrdered.tab",
+##                                             cancerID),
+##                                     col_names=F, comment="TCGA")))),
+##                 skip=1)
+##     })
+
+## write_tsv(bind_rows(treatPerCancer), "treatTab.tsv")
 
