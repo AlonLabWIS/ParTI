@@ -195,24 +195,50 @@ if maxRuns > 0
 	% points is relatively low, SDVMM is recommended.
 	fprintf('Now computing t-ratios.\n');
 
-	switch algNum
-	    case 1 %    algNum=1 :> Sisal (default)
-	        tRatioRand = CalculateSimplexTratiosSisal(DataPCA(:,1:NArchetypes),NArchetypes,maxRuns,numIter);
-	    case 2 %    algNum=2 :> MVSA
-	        tRatioRand = CalculateSimplexTratiosMVSA(DataPCA(:,1:NArchetypes),NArchetypes,maxRuns,numIter);
-	    case 3 %    algNum=3 :> MVES
-	        tRatioRand = CalculateSimplexTratiosMVES(DataPCA(:,1:NArchetypes-1),NArchetypes,maxRuns,numIter);
-	    case 4 %    algNum=4 :> SDVMM
-	        tRatioRand = CalculateSimplexTratiosSDVMM(DataPCA(:,1:NArchetypes-1),NArchetypes,maxRuns,numIter);
-	    case 5 %    algNum=5 :> PCHA
-	        tRatioRand = CalculateSimplexTratiosPCHA(DataPCA(:,1:min(NArchetypes-1,DataDim)),NArchetypes,maxRuns,numIter);
-	end
+    if NArchetypes > 2
+        switch algNum
+            case 1 %    algNum=1 :> Sisal (default)
+    	        tRatioRand = CalculateSimplexTratiosSisal(DataPCA(:,1:NArchetypes),NArchetypes,maxRuns,numIter);
+    	    case 2 %    algNum=2 :> MVSA
+    	        tRatioRand = CalculateSimplexTratiosMVSA(DataPCA(:,1:NArchetypes),NArchetypes,maxRuns,numIter);
+    	    case 3 %    algNum=3 :> MVES
+    	        tRatioRand = CalculateSimplexTratiosMVES(DataPCA(:,1:NArchetypes-1),NArchetypes,maxRuns,numIter);
+    	    case 4 %    algNum=4 :> SDVMM
+    	        tRatioRand = CalculateSimplexTratiosSDVMM(DataPCA(:,1:NArchetypes-1),NArchetypes,maxRuns,numIter);
+    	    case 5 %    algNum=5 :> PCHA
+    	        tRatioRand = CalculateSimplexTratiosPCHA(DataPCA(:,1:min(NArchetypes-1,DataDim)),NArchetypes,maxRuns,numIter);
+        end
+    
+    	if algNum<4 %for first three methods the t-ratio is larger than 1, and you want the minimal one
+    	    PvalueRatio=sum(tRatioRand<tRatioReal)/maxRuns;
+    	else %for last two methods (SDVMM, PCHA) t-ratio is smaller than 1, and you want the maximal one
+    	    PvalueRatio=sum(tRatioRand>tRatioReal)/maxRuns;
+        end
+    else
+        %if there is only 2 archetypes, compute the ratio of first two
+        %eigenvalues as a statistic for how line-like the data is.
+        %it is necessary to use a different statistic compared to the 3
+        %archetype case because the volume of a line is 0.
+        
+        asymReal = variances(1) / variances(2);
 
-	if algNum<4 %for first three methods the t-ratio is larger than 1, and you want the minimal one
-	    PvalueRatio=sum(tRatioRand<tRatioReal)/maxRuns;
-	else %for last two methods (SDVMM, PCHA) t-ratio is smaller than 1, and you want the maximal one
-	    PvalueRatio=sum(tRatioRand>tRatioReal)/maxRuns;
-	end
+        asymsRand=zeros(1,maxRuns); % This will hold the volume of the convex hull
+        for i=1:maxRuns
+            if mod(i,round(maxRuns/10)) == 0
+                fprintf('%.0f%% done\n', 100*i/maxRuns);
+            end
+            
+            SimplexRand=zeros(size(DataPoints));
+            % Shuffle the Sampled data -
+            for j=1:size(DataPoints,2) % for each dimension
+                shuffInd=randperm(size(DataPoints,1)); % shuffle the data values of each axis
+                SimplexRand(:,j)=DataPoints(shuffInd,j);
+            end
+            [~,~,variancesRand] = princomp(SimplexRand,'econ');
+            asymsRand(i) = variancesRand(1)/variancesRand(2);
+        end
+        PvalueRatio = sum(asymsRand>asymReal)/maxRuns;
+    end
 
 	fprintf('The significance of %d archetypes has p-value of: %2.5f \n',NArchetypes,PvalueRatio);
 end

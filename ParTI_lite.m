@@ -85,9 +85,8 @@ if nargin<1
     error('Too few arguments in the input, define at least the data points')
 end
 
-
 DataPointsSize = size(DataPoints);
-%The following makes prevents the user from specifying more dimensions than
+%The following prevents the user from specifying more dimensions than
 %the dataset has (Jean)
 if ( DataPointsSize(2) < dim )
     dim = DataPointsSize(2);
@@ -105,8 +104,8 @@ end
 % Initializing the running algorithm parameters
 global lowIterations;
 
-maxRuns=0; % current value for the number of data randomization, none for lite!
-numIter=50; % current value for the number of iterations to run the algorithm
+maxRuns=0; % number of data randomization, none for lite!
+numIter=50; % number of times we search for a simplex on the same dataset
 if exist('lowIterations', 'var') && ~isempty(lowIterations)
     maxRuns= 0; %current value for the number of data randomization, none for lite!
     numIter= 5 ; %current value for the number of iterations to run the algorithm

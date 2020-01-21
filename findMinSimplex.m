@@ -47,7 +47,7 @@ switch algNum
         end
         
         for i=1:3*numIter
-            [Archs,~, ~, ~] = sisal(DataPCA(:,1:NArchetypes)',NArchetypes,'verbose',0);
+            [Archs,~, ~, ~] = sisal(DataPCA(:,1:NArchetypes)',NArchetypes,'VERBOSE',0);
             if ~isnan(Archs)
                 %calculate the volume of the simplex
                 Arch1Red=bsxfun(@minus,Archs,Archs(:,NArchetypes));
