@@ -123,7 +123,7 @@ if size(arcOrig,1) == 0
 else
     %We allow passing archetypes so that indexing can stay constant from run to run
     fprintf('Will use archetypes passed as argument instead of determining them from scratch.\n');
-    [coefs1,pc] = princomp(DataPoints,'econ');
+    [coefs1,pc] = pca(DataPoints);
     nArch = size(arcOrig,1);
     trArcOrig = bsxfun(@minus,arcOrig,mean(DataPoints));
     

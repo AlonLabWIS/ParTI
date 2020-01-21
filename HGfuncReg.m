@@ -7,7 +7,9 @@ temparg1 = num2cell([1+a;2+a+aj;-b],1);
 temparg2 = num2cell([2+a;3+a+aj+bj],1);
 
 %hyp = cellfun(@(x,y)hypergeom(x,y,1),temparg1,temparg2);
-
+if exist('hypergeom') == 0
+ error('The Matlab Symbolic Toolbox is needed for this function. Please install the toolbox and try again.')
+end
 hyp = log(cellfun(@(x,y)hypergeom(x,y,1),temparg1,temparg2));
 
 

@@ -44,7 +44,7 @@ for idx=1:indGOlen
         
         %% Do PCA on the data
         %     fprintf('Starting to perform PCA, for big data on slow computers this may take a while...\n');
-        [~,scores1,~] = princomp(DataPointsWO,'econ');
+        [~,scores1,~] = pca(DataPointsWO);
         
         DataPCA=scores1;
         

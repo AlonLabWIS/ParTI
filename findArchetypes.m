@@ -50,10 +50,10 @@ end
 
 %% Do PCA on the data
 fprintf('Starting to perform PCA, for big data on slow computers this may take a while...\n');
-if exist('princomp') == 0
-    error('This package requires the princomp() function from the Matlab Statistical Toolbox. Please install the Matlab Statistical Toolbox or provide an implementation of the princomp() function.');
+if exist('PCA') == 0
+    error('This package requires the pca() function from the Matlab Statistics and Machine Learning Toolbox. Please install the Matlab Statistics and Machine Learning Toolbox.');
 end
-[coefs1,scores1,variances] = princomp(DataPoints,'econ');
+[coefs1,scores1,variances] = pca(DataPoints);
 percent_explained = 100*cumsum(variances)/sum(variances);
 
 figure;
@@ -234,7 +234,7 @@ if maxRuns > 0
                 shuffInd=randperm(size(DataPoints,1)); % shuffle the data values of each axis
                 SimplexRand(:,j)=DataPoints(shuffInd,j);
             end
-            [~,~,variancesRand] = princomp(SimplexRand,'econ');
+            [~,~,variancesRand] = pca(SimplexRand);
             asymsRand(i) = variancesRand(1)/variancesRand(2);
         end
         PvalueRatio = sum(asymsRand>asymReal)/maxRuns;
@@ -318,12 +318,12 @@ if maxRuns > 0 && ~(exist('abortAfterPval','var') && ~isempty(abortAfterPval))
         % remove the mean of each column - move the errors to zero
         clstArchErrMeanless=bsxfun(@minus,clusteredArchsError(:,1:DimFig),meanClstErrs(l,1:DimFig));
         % calculating the axes of the principal components
-        [Coeff2d{l},~,loadings2d]=princomp(clstArchErrMeanless(:,1:2));
+        [Coeff2d{l},~,loadings2d]=pca(clstArchErrMeanless(:,1:2));
         El1(l) = loadings2d(1)^(1/2);
         El2(l) = loadings2d(2)^(1/2);
 
         if DimFig >= 3
-            [Coeff,~,loadings]=princomp(clstArchErrMeanless);
+            [Coeff,~,loadings]=pca(clstArchErrMeanless);
             % generate the ellipsoid
             [Xel,Yel,Zel]=ellipsoid(0,0,0,loadings(1)^(1/2),loadings(2)^(1/2),loadings(3)^(1/2),25);
             % move the ellipsoid to the archtype location and rotate the ellipsoid
@@ -353,7 +353,7 @@ if maxRuns > 0 && ~(exist('abortAfterPval','var') && ~isempty(abortAfterPval))
                 clusteredArchsError(l,1) = 0;
             end
         end
-         %[~,~,loadingsArc]=princomp(clusteredArchsError);
+         %[~,~,loadingsArc]=pca(clusteredArchsError);
          %volarc = exp(mean(log(loadingsArc)));
          ArchsErrors{l} = cov(clusteredArchsError); %volarc / power(vol,1/(NArchetypes-1));
     end
