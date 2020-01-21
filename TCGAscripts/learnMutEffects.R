@@ -14,8 +14,8 @@ library(tidyverse)
 library(ggrepel)
 library(stringr)
 
-## altType <- "CNAs"; #SNVs, CNAs
 altType <- "SNVs"; #SNVs, CNAs
+## altType <- "CNAs"; #SNVs, CNAs
 isMetabric <- length(grep("metabric", getwd())) == 1
 cancerType <- getwd() %>%
     str_replace("^.*/", "") %>% str_replace("_UCSC$", "")
@@ -33,6 +33,51 @@ tmp <- sapply(geneNamesFilt, function(g) {
     geneExpression[,g]
 })
 geneExpression <- tmp
+
+## ## Centering is commutative:
+## dim(geneExpression)
+## length(apply(geneExpression, 1, function(x) { mean(x) })) #for each sample
+## length(apply(geneExpression, 2, function(x) { mean(x) })) #for each gene
+## dblCentered <-
+##     apply(
+##         t(apply(geneExpression, 1, function(x) { x - mean(x) })),
+##         2, function(x) { x - mean(x) })
+## dblCentered2 <-
+##     t(apply(
+##         apply(geneExpression, 2, function(x) { x - mean(x) }),
+##         1, function(x) { x - mean(x) }))
+## dim(dblCentered)
+## dim(dblCentered2)
+## sum(abs(dblCentered - dblCentered2))
+## ## End
+
+## Diagnostics
+## cols <- rep(1, nrow(geneExpression))
+## cols[270] <- 2
+
+## par(mfrow=c(2,3))
+## plot(apply(geneExpression, 1, function(x) { sum(exp(x)) }),
+##      pch=20, col=cols, cex=cols)
+## plot(apply(geneExpression, 1, function(x) { sum(x) }),
+##      pch=20, col=cols, cex=cols)
+## ## Renormlize gene expression
+## ## geneExpression <- t(apply(geneExpression, 1, function(x) { log(exp(x) * 1e9 / sum(exp(x))) }))
+
+## plot(apply(geneExpression, 1, mean), apply(geneExpression, 1, sd),
+##      pch=20, col=cols, cex=cols)
+## plot(apply(geneExpression, 1, median),
+##      apply(geneExpression, 1, function(x) { quantile(x, .75) - quantile(x, .25) }),
+##      pch=20, col=cols, cex=cols)
+## plot(apply(geneExpression, 2, mean), apply(geneExpression, 2, sd))
+
+## par(mfrow=c(3,3))
+## sapply(names(which(apply(geneExpression, 2, sd)>4)), function(g) {
+##     hist(geneExpression[,g], main=g)
+## })
+## hist(geneExpression[,"TP53"], main="TP53")
+
+## End diagnostics
+
 which(apply(is.na(geneExpression), 1, sum)>0)
 geneExprAvg <- apply(geneExpression, 2, mean)
 
@@ -86,7 +131,12 @@ length(apply(geneExpression, 2, function(x) { 1 }))
 ## rm(geneExpression)
 ## gE00 <- apply(gE0, 2, function(x) { x - geneExprAvg } )
 ## gE00 is centered on healthyProfile
+
 gE00 <- t(apply(geneExpression[isPT,], 2, function(x) { x - mean(x) }))
+## gE00 <-
+##     t(apply(
+##         t(apply(geneExpression[isPT,], 1, function(x) { x - mean(x) })),
+##         2, function(x) { x - mean(x) }))
 
 E <- gE00
 rm(gE00, tmp, geneExpression); gc();
@@ -221,7 +271,7 @@ sum(distMat == 0) #almost 3000 identical pairs! This may explain why
 plot(ecdf(apply(Mp[commonMuts,!mutUnprofiled], 2, sum))); abline(v=400)
 
 altFreq["PTEN=-1"]; altFreq["PTEN=1"]; altFreq["TP53=-1"]; altFreq["TP53=1"]
-minFrequency <- 1;
+minFrequency <- 10; ## setting 1 here makes it difficult to pass FDR
 abline(v=(minFrequency), lty=2)
 
 sum(apply(Mp[commonMuts,!hyperMutated], 1,
@@ -313,7 +363,7 @@ save.image(sprintf("learnMutEffects3_%s.rda", altType))
 
 ## 3D "Pareto front" subspace
 subspaces <- list()
-subspaces[["Front"]] <- projMat;
+subspaces[["Front"]] <- projMat[,1:(nArchs-1)];
 
 ## ## healthy -> cancer axis
 ## tmp <-
@@ -417,7 +467,7 @@ if ( grepl("brca", tolower(getwd())) ) {
         read_delim(
             sprintf("intogen-%s-drivers-data.tsv",
                     sub("^.*TCGA.([A-Z]*)_UCSC", "\\1", getwd())),
-            delim="\t") %>% ## filter(KNOWN_DRIVER=="True") %>%
+            delim="\t") %>% filter(KNOWN_DRIVER=="True") %>%
         select(SYMBOL) %>% distinct() %>%
         mutate(ONC=T, TSG=T) %>% rename(gene=SYMBOL)
 }
@@ -431,7 +481,7 @@ geneChr <-
 distinct(geneChr[,"chr"]) %>% print(n=100)
 nLoci <-
     select(geneChr, gene) %>% group_by(gene) %>%
-    summarize(n=n()) %>% mutate(uniqueLocus=(n<=10))
+    dplyr::summarize(n=n()) %>% mutate(uniqueLocus=(n<=10))
 inner_join(geneChr, nLoci) %>% arrange(desc(n), gene) %>%
     select(gene,n) %>% distinct()  %>% print(n=100)
 
@@ -439,7 +489,7 @@ geneChrU <- inner_join(geneChr, nLoci) %>% filter(uniqueLocus)
 ## geneChr[,"chr"] <- as.numeric(geneChr[,"chr"])
 chrLens <-
     group_by(geneChr, chr) %>%
-    summarize(chrLen=max(end), chrNum=mean(chrNum)) %>%
+    dplyr::summarize(chrLen=max(end), chrNum=mean(chrNum)) %>%
     arrange(chrNum) %>%
     mutate(offsets=lag(cumsum(as.numeric(chrLen)))) %>%
     replace_na(replace=list(offsets=0))
@@ -449,7 +499,8 @@ genomeLen <- as.numeric(
     summarize(chrLens, sum(as.numeric(chrLen))))
 
 universeGeneNames <- unique(sub("=.*$", "", rownames(Mp)))
-qValThreshold <- .01;
+## qValThreshold <- .01;
+qValThreshold <- .1; ## to get a few aligned CNAs
 
 clusterGenomCoords <- function(coords, expand=1) {
     if ( length(coords) == 1 ) { return(0); }
@@ -540,14 +591,34 @@ log10pRatios <- sapply(1:length(ratios), function(i) {
 summary(log10pSS)
 summary(log10pSSonFront)
 summary(log10pRatios)
+
+getBHcutOff <- function(p, fdr=.1) {
+    ps <- sort(p);
+    cutOffIdx <- sum(ps < fdr*(1:length(ps))/length(ps))
+    if ( cutOffIdx == 0 ) {
+        return(0)
+    }  else {
+        ps[cutOffIdx]
+    }
+}
+
 ## hist(10^log10pRatios)
 ## Bonferroni correction
 ## log10q <- log10p + log10(length(onf))
 ## log10q[log10q>0] <- 0
 ## hist(log10q)
-nBHSS <- sum(10^sort(log10pSS) < qValThreshold/(1:length(log10pSS)))
-nBHSSonFront <- sum(10^sort(log10pSSonFront) < qValThreshold/(1:length(log10pSSonFront)))
-nBHratios <- sum(10^sort(log10pRatios) < qValThreshold/(1:length(log10pRatios)))
+nBHSS <- sum(10^sort(log10pSS) <
+             qValThreshold * (1:length(log10pSS))/length(log10pSS)
+             )
+nBHSSonFront <- sum(10^sort(log10pSSonFront) <
+                    qValThreshold *
+                    (1:length(log10pSSonFront))/length(log10pSSonFront)
+                    )
+nBHratios <- sum(
+    10^sort(log10pRatios) <
+    qValThreshold * (1:length(log10pRatios)) /
+    length(log10pRatios)
+)
 
 log10qSS <- log10(fdrtool(10^log10pSS, statistic="pvalue")$qval)
 ## hist(10^log10qSS, seq(0,1,by=.1), col="lightblue")
@@ -560,16 +631,12 @@ log10qSSonFront <- log10(fdrtool(10^log10pSSonFront,
 ## hist(10^log10pSSonFront, seq(0,1,by=.1), add=T)
 ## plot(log10pSSonFront, log10qSSonFront); abline(0,1)
 
-log10qRatios <- log10(fdrtool(10^log10pRatios, statistic="pvalue")$qval)
-if ( diff(range(log10qRatios)) < 1 ) {
-    ## cat("FDRs don't vary; fdrtool probably failed. Falling back on bonferroni.\n")
-    ## log10qRatios <- log10pRatios + log10(length(log10pRatios))
-    ## log10qRatios[log10qRatios>0] <- 0
-
-    cat("FDRs don't vary; fdrtool probably failed. Falling back on BH.\n")
+## log10qRatios <- log10(fdrtool(10^log10pRatios, statistic="pvalue")$qval)
+## if ( diff(range(log10qRatios)) < 1 ) {
+##     cat("FDRs don't vary; fdrtool probably failed. Falling back on BH.\n")
     log10qRatios <- log10pRatios;
     log10qRatios[order(log10pRatios)[seq(nBHratios+1, length(log10pRatios))]] <- 0
-}
+## }
 ## hist(10^log10qRatios, seq(0,1,by=.1), col="lightblue")
 ## hist(10^log10pRatios, seq(0,1,by=.1), add=T)
 ## plot(log10pRatios, log10qRatios); abline(0,1)
@@ -772,7 +839,7 @@ cancerGenes <-
 library(forcats)
 cmpAlns <-
     allMuts %>%
-    select(gene, fracOnFront, isDrivingAlteration, freqNHM, frequency);
+    select(gene, alteration, fracOnFront, isDrivingAlteration, freqNHM, frequency);
 cmpAlns <-
     cmpAlns %>% 
     mutate(isCancerGene=map_lgl(cmpAlns[,"gene"] %>% unlist %>% as.character,
@@ -828,7 +895,38 @@ cmpAlns <-
 ##         mutate(altLabel=sprintf("%s\n(n=%d)", altType, n)) %>%
 ##         select(-n)
 ##     )
+## Compare to shuffled
+if ( altType == "SNVs" ) {
+    pWilcox <-
+        sapply(c("driver gene", "cancer gene",
+                 "other gene", "shuffled"), function(lab) {
+            wilcox.test(rratios,
+                        cmpAlns %>% filter(altType==!!lab) %>%
+                        select(fracOnFront) %>% unlist, 
+                        alternative="less")$p.value
+                 }) %>% enframe(name="altType", value="p") %>%
+        mutate(p=sprintf("p = %.1e", p)) %>%
+        mutate(altType=as_factor(altType, levels(cmpAlns["altType"])))
+} else {
+    labs <- c("driver gene", "cancer gene", "other gene", "shuffled")
+    pWilcox <- 
+        sapply(labs[1:3], function(lab) {
+            i <- which(labs == lab)
+            X <- cmpAlns %>% filter(altType==!!labs[i]) %>%
+                select(fracOnFront) %>% unlist
+            if ( labs[i+1] == "shuffled" ) {
+                Y <- rratios
+            } else {
+                Y <- cmpAlns %>% filter(altType==!!labs[i+1]) %>%
+                    select(fracOnFront) %>% unlist
+            }
+            wilcox.test(X, Y, alternative="greater")$p.value
+        }) %>% enframe(name="altType", value="p") %>%
+        mutate(p=sprintf("p = %.1e", p)) %>%
+        mutate(altType=as_factor(altType, levels(cmpAlns["altType"])))
+}
 
+## cmpAlns %>% inner_join(pWilcox) %>% unite(altType, p, col="altType", sep="\n")
 ggplot(cmpAlns) +
     geom_boxplot(aes(x=altType, y=100*fracOnFront), width=.4) +
     ## geom_crossbar(aes(x=altType, y=y, ymin=ymin, ymax=ymax), width=.4, fill="white",
@@ -839,12 +937,70 @@ ggplot(cmpAlns) +
     ##               ) +
     ## geom_jitter(aes(x=altType, y=100*fracOnFront, color="#AA3333"), width=.1, 
     ##             data=cmpAlns %>% filter(altType != "shuffled")) +
-    geom_hline(aes(yintercept=100*sum(EPCAeig[1:nPCs])/sum(EPCAeig)),
+    geom_hline(aes(yintercept=100*sum(EPCAeig[1:(nArchs-1)])/sum(EPCAeig)),
                linetype=2) +
     labs(x="Type of alteration", y="% alignment with Pareto front") +
     theme_gray() + theme(legend.position="none")
 ggsave(sprintf("%s_alnWithFront.pdf", altType), height=2.5, width=3);
 
+## The same, in degrees
+toFlash <- allMuts %>%
+    ## filter(isAln & isDrivingAlteration) %>%
+    filter(isDrivingAlteration) %>%
+    arrange(desc(isAln), desc(frequency)) %>%
+    slice(1:(3+3)) %>% 
+    select(alteration) %>%
+    inner_join(cmpAlns)
+if ( altType == "SNVs" ) {
+    toFlash <- toFlash %>% mutate(alteration=gene)
+} else if ( altType == "CNAs" ) {
+    toFlash <- toFlash %>%
+        mutate(alteration=str_replace_all(alteration,
+                                          c("=-2"="(-2)",
+                                            "=-1"="(-1)",
+                                            "=1"="(+1)",
+                                            "=2"="(+2)")))
+}
+## if ( altType == "SNVs" ) {
+##     toFlash <- toFlash %>%
+##         transmute(gene=str_replace(alteration, "=.*$", ""))
+## }
+
+## Downsample random genes to as many genes as driver genes for visualization
+nDrivers <- cmpAlns %>% filter(altType == "driver gene") %>% nrow
+## bind_rows(cmpAlns %>% filter(altType != "shuffled"),
+##                  cmpAlns %>%
+##                  filter(altType == "shuffled") %>%
+##                  .[sample(1:length(rratios),
+##                           ## 100),])) +
+##                           nDrivers),]
+##                  )
+
+ggplot(bind_rows(
+    cmpAlns %>% filter(altType != "shuffled"),
+    cmpAlns %>%
+    filter(altType == "shuffled") %>%
+    arrange(fracOnFront) %>% 
+    .[seq(1, length(rratios),
+          len=ifelse(nDrivers<25, 25, nDrivers)),] )) +
+    geom_boxplot(aes(x=altType, y=90*(1-fracOnFront)), width=.4) +
+    geom_hline(aes(yintercept=90*(1-sum(EPCAeig[1:(nArchs-1)])/sum(EPCAeig))),
+               linetype=2) +
+    geom_point(aes(x=altType, y=90*(1-fracOnFront)),
+               color="black", fill="white", shape=21, size=2,
+               data=toFlash) +
+    geom_text_repel(aes(x=altType, y=90*(1-fracOnFront), label=alteration),
+                     size=3, data=toFlash) +
+    geom_label(aes(x=altType, y=87.5, label=p), data=pWilcox) +
+    labs(x="Type of alteration",
+         y=expression("Angle to Pareto front (degrees)")) +
+    theme_gray() + theme(legend.position="none")
+## Main figure
+## ggsave(sprintf("%s_alnWithFront_deg.pdf", altType), height=2.5, width=3);
+## Suppl figure
+ggsave(sprintf("%s_alnWithFront_deg.pdf", altType), height=4, width=5);
+
+## Some other tests
 length(unlist(cmpAlns %>% filter(altType=="driver gene") %>% select(fracOnFront)))
 length(unlist(cmpAlns %>% filter(altType=="cancer gene") %>% select(fracOnFront)))
 wilcox.test(unlist(cmpAlns %>% filter(altType=="driver gene") %>% select(fracOnFront)),
@@ -854,8 +1010,6 @@ length(unlist(cmpAlns %>% filter(altType=="other gene") %>% select(fracOnFront))
 wilcox.test(unlist(cmpAlns %>% filter(altType=="driver gene") %>% select(fracOnFront)),
             unlist(cmpAlns %>% filter(altType=="other gene") %>% select(fracOnFront)),
             alternative="greater")
-wilcox.test(rratios,
-            unlist(filter(allMuts, isDrivingAlteration) %>% select(fracOnFront)))
 
 ggplot(allMuts) +
     geom_point(aes(x=frequency, y=normOnFront,
@@ -1063,6 +1217,7 @@ if ( altType == "CNAs" ) {
     expandClusterBy <- 5e6;
     mychr <- "1"
     mychr <- "16"
+    mychr <- "11"
     for (mychr in unlist(distinct(allMutsChrD, chr))) {
         gIdcs <- which(allMutsChrD[,"chr"] == mychr &
                        ( allMutsChrD[,"isAln"] | allMutsChrD[,"isDrivingAlteration"] ))
@@ -1111,6 +1266,7 @@ if ( altType == "CNAs" ) {
     mychr <- "17"
     mychr <- "11"
     myalpha <- .65
+    ## ## ## Make per chromosome plot
     ## for (mychr in as.data.frame(chrLens)[,"chr"]) {
     ##     if ( filter(allMutsChrD, chr==mychr) %>% count() == 0 ) {
     ##         next;
@@ -1198,14 +1354,36 @@ if ( altType == "CNAs" ) {
     ##                          alpha=myalpha, show.legend=F) +
     ##         labs(x=xlab, y="% alignment with Pareto front") +
     ##         theme_gray()
-    
+
+    ##     ggplot(allMutsChrD %>%
+    ##            filter(chr==mychr, str_detect(alteration, "=-1")) %>%
+    ##            mutate(angle=acos(fracOnFront) * 180 / pi) %>% 
+    ##            mutate(isATM=str_detect(alteration, "ATM=-1"))
+    ##            ) +
+    ##         geom_point(mapping=aes(x=start/1e6, y=angle, color=isATM ##, color=isAln
+    ##                                )) +
+    ##         coord_cartesian(xlim=c(0,
+    ##                                as.numeric(filter(chrLens, chr==mychr) %>%
+    ##                                           select(chrLen))/1e6)) +
+    ##         ## geom_label_repel(data=filter(allMutsChrD,
+    ##         ##                              chr==mychr & isDrivingAlteration) %>%
+    ##         ##                      mutate(angle=acos(fracOnFront) * 180 / pi),
+    ##         ##                  mapping=aes(x=start/1e6, y=angle,
+    ##         ##                              label=alteration## , color=isAln
+    ##         ##                              ),
+    ##         ##                  alpha=myalpha, col="red", show.legend=F) +
+    ##         labs(x=xlab, y="angle to Pareto front") +
+    ##         theme_gray()
+    ##     ggsave("ATM1_CNA.pdf", height=3, width=5)
+        
     ##     plot_grid(p1, p2, p3, p4, p5, labels=toupper(letters[1:5]),
     ##               nrow=5, ncol=1, align="v")
     ##     ggsave(sprintf("chrPos_frequency_fracOnFront_log10qNorm_%s_%s_%s.pdf",
     ##                    altType, s, mychr),
     ##            height=3*5, width=12*1)
     ## }
-
+    ## ## ## End of per chromosome plot
+    
     allMutsChrD[allMutsChrD[,"chrCluster"] == "0-14",
                 c("chr", "start")] %>% arrange(start)
 
@@ -1765,7 +1943,7 @@ ggsave("hallmarkOmeter_byArch.pdf", height=6, width=14)
 ## with each archetype
 i <- 1
 load(sprintf("Xproj_%s.rda", altType))
-if ( isMetabric ) {
+if ( isMetabric & altType == "SNVs") {
     rownames(Xproj) <- paste(rownames(Xproj), "=1", sep="")
 }
 Xproj[1:5,]
@@ -1822,7 +2000,8 @@ if ( isMetabric ) {
 
 ## SAMSig <- SAMSig %>% filter(`P value (Mann-Whitney)` < 1e-3)
 SAMSig <- SAMSig %>% filter(`Mean Difference` > 0.1)
-featsUniv <- union(SAMSig %>% select(`Feature Name`), arcsMSig %>% select(`Feature Name`))
+featsUniv <- union(SAMSig %>% select(`Feature Name`),
+                   arcsMSig %>% select(`Feature Name`))
 ## featsUniv <- SAMSig %>% select(`Feature Name`) %>% unique()
 ## read_rds("../MSigDBord.rds")
 arcIdx <- 1;
@@ -1832,36 +2011,94 @@ SAmapping <-
     map_int(unlist(arcsMSig %>% select(`archetype #`) %>% unique), function(arcIdx) {
         SAidx <- 1;
         SAidx <- 2;
-        map_dbl(unlist(SAMSig %>% select(`archetype #`) %>% unique),
-                function(SAidx) {
-                    SAfeats <- SAMSig %>% filter(`archetype #` == SAidx) %>% select(`Feature Name`)
-                    arcFeats <- arcsMSig %>%
-                        filter(`archetype #` == arcIdx) %>%
-                        select(`Feature Name`)
-                    ## nrow(SAfeats)
-                    ## nrow(arcFeats)
+        arcScores <-
+            map_dbl(unlist(SAMSig %>% select(`archetype #`) %>% unique),
+                    function(SAidx) {
+                        SAfeats <- SAMSig %>% filter(`archetype #` == SAidx) %>% select(`Feature Name`)
+                        arcFeats <- arcsMSig %>%
+                            filter(`archetype #` == arcIdx) %>%
+                            select(`Feature Name`)
+                        ## nrow(SAfeats)
+                        ## nrow(arcFeats)
 
-                    ## myUniv <- union(SAfeats, arcFeats)
-                    expIntersect <- nrow(SAfeats) * nrow(arcFeats) / nrow(featsUniv)
-                    
-                    p <- fisher.test(
-                        ## table(unlist(union(SAfeats, arcFeats)) %in% unlist(SAfeats),
-                        ##       unlist(union(SAfeats, arcFeats)) %in% unlist(arcFeats))
-                        table(unlist(featsUniv) %in% unlist(SAfeats),
-                              unlist(featsUniv) %in% unlist(arcFeats))
-                    )$p.value
-                    
-                    ## intersect(SAfeats, arcFeats) %>% nrow /
-                    ##     union(SAfeats, arcFeats) %>% nrow
+                        ## myUniv <- union(SAfeats, arcFeats)
+                        ## expIntersect <- nrow(SAfeats) * nrow(arcFeats) / nrow(myUniv)
+                        expIntersect <- nrow(SAfeats) * nrow(arcFeats) / nrow(featsUniv)
 
-                    foldEnrich <- nrow(intersect(SAfeats, arcFeats)) / expIntersect;
-                    ## if ( p > .01 ) { foldEnrich <- 0 }
-                    return(foldEnrich)
-                    ## return(p)
-                }) %>% which.max
+                        ## phyper(q, m, n, k, lower.tail = TRUE, log.p = FALSE)
+                        ## q,x: number of white balls drawn without
+                        ## replacement from an urn which contains both black and white balls.
+                        ## m: the number of white balls in the urn.
+                        ## n: the number of black balls in the urn.
+                        ## k: the number of balls drawn from the urn.
+                        p <- phyper(q=intersect(SAfeats, arcFeats) %>% nrow,
+                                    m=SAfeats %>% nrow,
+                                    n=nrow(featsUniv) - nrow(SAfeats),
+                                    k=arcFeats %>% nrow,
+                                    lower.tail=F)
+                        
+                        foldEnrich <- nrow(intersect(SAfeats, arcFeats)) / expIntersect;
+                        ## if ( p > .01/(nArchs * 5) ) { foldEnrich <- 0 }
+                        ## return(foldEnrich)
+                        return(p)
+                    })
+        ## Make sure the overlap with the closest super-archetype is significant
+        cutOff <- .01 / (nArchs * 5)
+        if ( min(arcScores) > cutOff ) {
+            return(NA)
+        } else {
+            return(which.min(arcScores))
+        }
     })
 
+##################################################
+
+## ## Match archetypes to super archetypes (minimal distance)
+
+## if ( isMetabric ) {
+##     SAMSigAll <-
+##         read_csv("../TCGA/ALL_UCSC/MSigDBenrichment_continuous_All.csv")
+## } else {
+##     SAMSigAll <-
+##         read_csv("../ALL_UCSC/MSigDBenrichment_continuous_All.csv")
+## }
+
+## MSigDBAll <- read_csv("MSigDBenrichment_continuous_All.csv")
+
+## Amat <- inner_join(
+##     tibble("Feature Name"=as.character(unlist(toShow))),
+##     MSigDBAll) %>% select(`Feature Name`, `archetype #`, `Mean Difference`) %>%
+##     spread(`archetype #`, `Mean Difference`)
+## SAmat <- inner_join(
+##     tibble("Feature Name"=as.character(unlist(toShow))),
+##     SAMSigAll) %>% select(`Feature Name`, `archetype #`, `Mean Difference`) %>%
+##     spread(`archetype #`, `Mean Difference`)
+
+## ## make sure MSigDB are ordered the same way
+## sum(Amat[,1] != SAmat[,1]) == 0 
+
+## library(gtools)
+## allPerms <- permutations(n=ncol(SAmat) - 1, r=ncol(Amat) - 1);
+## allDists <-
+##     apply(allPerms, 1, function(myPerm) {
+##         sqrt(sum(( SAmat[,-1][,myPerm] - Amat[,-1] )^2))
+##     })
+## plot(sort(allDists))
+## bestPerms <- order(allDists)[1:5]
+## apply(allPerms[bestPerms,], 1, function(x) {
+##     names(arcCols)[x]
+## })
+
+## ## SAmapping <- allPerms[which.min(allDists),]
+
+##################################################
+
 tCols <- arcCols[SAmapping]
+if ( isMetabric ) {
+    tCols[4] <- "grey";
+    names(tCols)[4] <- "HER2";
+}
+names(tCols) %>% enframe %>% write_csv("archetypes_tasks.csv")
 
 ##################################################
 ## Represent the polyhedron in 3D
@@ -1869,44 +2106,221 @@ tCols <- arcCols[SAmapping]
 ## 2 / diff(range(archProj)) is about 0.007
 ## 15 / diff(range(archProj)) is about 0.05 on BLCA
 
-plot3d(posInPCspace[,1:3],
+posInPCspaceV <- posInPCspace; ## for visualization
+archProjV <- archProj;
+if ( nArchs <= 3 ) {
+    posInPCspaceV[,3] <- 0;
+    archProjV[,3] <- 0;
+}
+
+open3d()
+pp <- dget("characterizeArchetypes_3DplotSetup.R")
+par3d(pp)
+plot3d(posInPCspaceV[,1:3],
        ## alpha=.35, col="grey",
-       col="black", type="s", radius=diff(range(archProj)) * 0.007, shininess=100,
+       col="black", type="s", radius=diff(range(archProjV)) * 0.007, shininess=100,
        ## alpha=.5,
        box=F, axes=F,
-       aspect=F,
+       ## aspect=F,
        ## xlab="PC1", ylab="PC2", zlab="PC3", axes=T, box=F,
        xlab="", ylab="", zlab="",
-       xlim=range(c(archProj[,1], posInPCspace[,1])),
-       ylim=range(c(archProj[,2], posInPCspace[,2])),
-       zlim=range(c(archProj[,3], posInPCspace[,3])))
+       xlim=range(c(archProj[,1:3], posInPCspace[,1:3])),
+       ylim=range(c(archProj[,1:3], posInPCspace[,1:3])),
+       zlim=range(c(archProj[,1:3], posInPCspace[,1:3])))
+       ## xlim=range(c(archProjV[,1], posInPCspace[,1])),
+       ## ylim=range(c(archProjV[,2], posInPCspace[,2])),
+       ## zlim=range(c(archProjV[,3], posInPCspace[,3])))
 ## spheres3d(hPt, col="green", radius=5)
-## spheres3d(archProj, radius=15, col=tCols)
+## spheres3d(archProjV, radius=15, col=tCols)
 
-spheres3d(archProj, radius=diff(range(archProj)) * 0.05, col="red")
-## text3d(archProj[,1], archProj[,2], archProj[,3],
+
+## text3d(archProjV[,1], archProjV[,2], archProjV[,3],
 ##        ## allPerms[[topPerm]],
-##        1:nrow(archProj),
+##        1:nrow(archProjV),
 ##        adj=2.5)
-sapply(1:(nrow(archProj)-1), function(i) {
-    sapply(seq(i+1, nrow(archProj)), function(j) {
-        segments3d(archProj[c(i,j),1], archProj[c(i,j),2],
-                   archProj[c(i,j),3], col="grey")
+sapply(1:(nrow(archProjV)-1), function(i) {
+    sapply(seq(i+1, nrow(archProjV)), function(j) {
+        segments3d(archProjV[c(i,j),1], archProjV[c(i,j),2],
+                   archProjV[c(i,j),3], col="grey", lwd=10)
     })
 })
+## spheres3d(archProjV, radius=diff(range(archProjV)) * 0.05, col="red")
+spheres3d(archProjV, radius=diff(range(archProjV)) * 0.05, col=tCols)
+## ## Save the scene:
+## pp <- par3d(no.readonly=T)
+## pp$userMatrix[1:3,1:3] <-
+##     diag(c(1,1,1))
+##     matrix(c(0, 1, 0,
+##              -1, 0, 0,
+##              0, 0, 1), ncol=3, byrow=T)
+##     matrix(c(0, -1, 0,
+##              -1, 0, 0,
+##              0, 0, -1), ncol=3, byrow=T)
+## dput(pp, file="characterizeArchetypes_3DplotSetup.R")
+pp <- dget("characterizeArchetypes_3DplotSetup.R")
+par3d(pp)
 rgl.snapshot("characterizeArchetypes_3Dplot.png", fmt="png")
+rgl.close()
+
+## Show randomized version of the same plot
+
+## rndE <- E;
+## for (i in 1:ncol(rndE)) {
+##     rndE[,i] <- sample(rndE[,i])
+## }
+## ## for (i in 1:nrow(rndE)) {
+## ##     rndE[i,] <- sample(rndE[i,])
+## ## }
+## ## dudi2rnd <- dudi.pca(t(rndE), scale=F, scannf=F, nf=nPCs)
+## dudi2rnd <- dudi.pca(t(rndE[,-rev(order(apply(E, 2, sd)))[1:5]]),
+##                      scale=F, scannf=F, nf=nPCs)
+
+## rndPosInPCspace <- as.matrix(dudi2rnd$li);
+
+rndPosInPCspace <- posInPCspaceV[,1:3]
+for (i in 1:ncol(rndPosInPCspace)) {
+    rndPosInPCspace[,i] <- sample(rndPosInPCspace[,i])
+}
+
+## plot(rndPosInPCspace[,1], rndPosInPCspace[,2])
+## plot(rndPosInPCspace[,1], rndPosInPCspace[,3])
+## which(abs(rndPosInPCspace[,1]) > 50)
+## which(abs(rndPosInPCspace[,2]) > 50)
+## which(abs(rndPosInPCspace[,3]) > 50)
+## plot(apply(E, 2, sd))
+## plot(apply(E, 1, var))
+## rev(order(apply(E, 2, sd)))[1:10]
+## hist(apply(E, 2, var), 20)
+## hist(apply(E, 1, var), 20)
+
+## plot(density(E[,1]), type="n", ylim=c(0,1))
+## for ( i in sample(1:ncol(E), 5) ) {
+##     lines(density(E[,i], bw=.2))
+## }
+## for ( i in rev(order(apply(E, 2, sd)))[1:5] ) {
+##     lines(density(E[,i], bw=.2), col="red")
+## }
+## lines(density(E[,270]), col="red")
+## lines(density(E[,5]), col="red")
+## plot(apply(E, 2, mean), 
+##      apply(E, 2, sd))
+## which(apply(E, 2, sd) > 2)
+
+## plot3d(rnorm(1e3), rnorm(1e3), rnorm(1e3)/10, aspect=T,
+##        xlim=c(-4,4), ylim=c(-4, 4), zlim=c(-4,4))
+## rgl.close()
+
+## plot3d(rndPosInPCspace[,1:3],
+##        ## alpha=.35, col="grey",
+##        col="black", type="s", radius=diff(range(archProjV)) * 0.007, shininess=100,
+##        ## alpha=.5,
+##        ## aspect=F,
+##        ## xlab="PC1", ylab="PC2", zlab="PC3", axes=T, box=F,
+##        xlab="", ylab="", zlab="", box=F, axes=F,
+##        xlim=range(c(archProjV[,1:3], posInPCspaceV[,1:3])),
+##        ylim=range(c(archProjV[,1:3], posInPCspaceV[,1:3])),
+##        zlim=range(c(archProjV[,1:3], posInPCspaceV[,1:3])))
+## ## sapply(1:(nrow(archProjV)-1), function(i) {
+## ##     sapply(seq(i+1, nrow(archProjV)), function(j) {
+## ##         segments3d(archProjV[c(i,j),1], archProjV[c(i,j),2],
+## ##                    archProjV[c(i,j),3], col="grey", lwd=10)
+## ##     })
+## ## })
+## ## spheres3d(archProjV, radius=diff(range(archProjV)) * 0.05, col="red")
+## ## pp <- dget("characterizeArchetypes_3DplotSetup.R")
+## par3d(pp)
+## ## rgl.snapshot("characterizeArchetypes_3Dplot_random.png", fmt="png")
+## rgl.close()
+
+if ( length(grep("LGG_UCSC", getwd())) == 1 ) {
+    dType <- "original"
+    for ( dType in c("original", "shuffled")) {
+        if ( dType == "original" ) {
+            myData <- posInPCspaceV[,1:2];
+            myArch <- archProjV[,1:2];
+        } else {
+            myData <- rndPosInPCspace[,1:2];
+            myArch <- archetypes::archetypes(myData, 3)$archetypes
+        }
+
+        pdf(sprintf("archFit_illust_%s.pdf", dType), height=5, width=5);
+        plot(myData[,1], myData[,2],
+             xlim=range(c(myData, myArch)),
+             ylim=range(c(myData, myArch)),
+             pch=20)
+        ## lines(archProjV[c(1:nrow(archProjV), 1),1],
+        ##       archProjV[c(1:nrow(archProjV), 1),2], lwd=2)
+        lines(myArch[c(1:nrow(myArch), 1),1],
+              myArch[c(1:nrow(myArch), 1),2], lwd=2)
+        myChull <- grDevices::chull(myData)
+        myChull <- c(myChull, myChull[1])
+        lines(myData[myChull,], col="grey")
+        dev.off()
+    }
+}
+
 
 ##################################################
 
 contClin <- read.table("continuousClinicalData_reOrdered.tsv",
                        as.is=T, sep="\t", h=T)
-ggplot(tibble(Axis1=posInPCspace[,1], Axis2=posInPCspace[,2],
-              Purity=contClin[isPT,"ESTIMATE"])) +
-    geom_point(aes(x=Axis1, y=Axis2, color=Purity)) +
-    geom_point(aes(x=x, y=y), color="red", size=5,
-               data=tibble(x=archProj[,1], y=archProj[,2]))
-ggsave("purity_PC1_PC2.pdf", height=4, width=5)
-    
+if ( length(grep("ESTIMATE", colnames(contClin))) > 0 ) {
+    ggplot(tibble(Axis1=posInPCspaceV[,1], Axis2=posInPCspaceV[,2],
+                  Purity=contClin[isPT,"ESTIMATE"])) +
+        geom_point(aes(x=Axis1, y=Axis2, color=Purity)) +
+        geom_point(aes(x=x, y=y), color="red", size=5,
+                   data=tibble(x=archProjV[,1], y=archProjV[,2]))
+    ggsave("purity_PC1_PC2.pdf", height=4, width=5)
+}
+
+## ggplot(tibble(Axis1=posInPCspaceV[,1], Axis2=posInPCspaceV[,2],
+##               nSNVs=contClin[isPT,"number_of_SNVs_frac"])) +
+##     geom_point(aes(x=Axis1, y=Axis2, color=nSNVs)) +
+##     geom_point(aes(x=x, y=y), color="red", size=5,
+##                data=tibble(x=archProjV[,1], y=archProjV[,2]))
+## ggsave("SNVsFrac_PC1_PC2.pdf", height=4, width=5)
+
+## ggplot(tibble(Axis1=posInPCspaceV[,1], Axis2=posInPCspaceV[,2],
+##               nCNAs=contClin[isPT,"number_of_CNAs_frac"])) +
+##     geom_point(aes(x=Axis1, y=Axis2, color=nCNAs)) +
+##     geom_point(aes(x=x, y=y), color="red", size=5,
+##                data=tibble(x=archProjV[,1], y=archProjV[,2]))
+## ggsave("CNAsFrac_PC1_PC2.pdf", height=4, width=5)
+
+plot3d(posInPCspaceV[,1:3],
+       col=heat.colors(100, alpha = 1)[round(contClin[isPT,"number_of_SNVs_frac"] * 100)],
+       type="s", radius=diff(range(archProjV)) * 0.007, shininess=100,
+       box=F, axes=F,
+       xlab="", ylab="", zlab="",
+       xlim=range(c(archProjV[,1:3], posInPCspaceV[,1:3])),
+       ylim=range(c(archProjV[,1:3], posInPCspaceV[,1:3])),
+       zlim=range(c(archProjV[,1:3], posInPCspaceV[,1:3])))
+sapply(1:(nrow(archProjV)-1), function(i) {
+    sapply(seq(i+1, nrow(archProjV)), function(j) {
+        segments3d(archProjV[c(i,j),1], archProjV[c(i,j),2],
+                   archProjV[c(i,j),3], col="grey", lwd=10)
+    })
+})
+spheres3d(archProjV, radius=diff(range(archProjV)) * 0.05, col="red")
+rgl.close()
+
+plot3d(posInPCspaceV[,1:3],
+       col=heat.colors(100, alpha = 1)[round(contClin[isPT,"number_of_CNAs_frac"] * 100)],
+       type="s", radius=diff(range(archProjV)) * 0.007, shininess=100,
+       box=F, axes=F,
+       xlab="", ylab="", zlab="",
+       xlim=range(c(archProjV[,1:3], posInPCspaceV[,1:3])),
+       ylim=range(c(archProjV[,1:3], posInPCspaceV[,1:3])),
+       zlim=range(c(archProjV[,1:3], posInPCspaceV[,1:3])))
+sapply(1:(nrow(archProjV)-1), function(i) {
+    sapply(seq(i+1, nrow(archProjV)), function(j) {
+        segments3d(archProjV[c(i,j),1], archProjV[c(i,j),2],
+                   archProjV[c(i,j),3], col="grey", lwd=10)
+    })
+})
+spheres3d(archProjV, radius=diff(range(archProjV)) * 0.05, col="red")
+rgl.close()
+
 ## ##################################################
 ## ## 2. Align by distance in 5-arch PC space
 ## ## center LGG archetypes
@@ -1958,37 +2372,120 @@ ggsave("purity_PC1_PC2.pdf", height=4, width=5)
 ##     names(tCols[idx]) <- names(arcCols[newSAidx])
 ## }
 
-vRefs <- ## normalize archetypes so distance doesn't matter, only direction
+##################################################
+## Collect direction vectors to archetypes, edges, faces
+
+vRefs <- list()
+
+## directions to archetypes:
+vRefs[["archs"]] <- 
     sapply(1:nrow(archProj), function(i) {
         ## vRef <- archProj[i,] - archProj[healthyArch,]
         vRef <- archProj[i,]
-        vRef <- vRef / sqrt(sum(vRef^2))
+        ## normalize archetypes so distance doesn't matter, only
+        ## direction
+        vRef <- vRef / sqrt(sum(vRef^2))        
         return(vRef)
     })
+colnames(vRefs[["archs"]]) <- sprintf("archetype: %s", names(tCols))
 ## sum(vRefs[,2]^2)
+
+## directions to edges
+vRefs[["edges"]] <- matrix(NA, ncol(archProj), 0);
+if ( nArchs >= 3 ) {
+    for (i in 1:(nrow(archProj)-1)) {
+        for (j in (i+1):nrow(archProj)) {
+            vRef <- archProj[i,] + archProj[j,]
+            vRef <- vRef / sqrt(sum(vRef^2))
+            vRefs[["edges"]] <- cbind(vRefs[["edges"]], vRef)
+            colnames(vRefs[["edges"]])[ncol(vRefs[["edges"]])] <-
+                sprintf("edge: %s - %s", names(tCols)[i], names(tCols)[j])
+        }
+    }
+}
+
+## directions to faces
+vRefs[["faces"]] <- matrix(NA, ncol(archProj), 0);
+if ( nArchs >= 4 ) {
+    for ( i in 1:(nrow(archProj)-2) ) {
+        for ( j in (i+1):(nrow(archProj)-1) ) {
+            for ( k in (j+1):nrow(archProj) ) {
+                vRef <- archProj[i,] + archProj[j,] + archProj[k,]
+                vRef <- vRef / sqrt(sum(vRef^2))
+                vRefs[["faces"]] <- cbind(vRefs[["faces"]], vRef)
+                colnames(vRefs[["faces"]])[ncol(vRefs[["faces"]])] <-
+                    sprintf("face: %s - %s - %s",
+                            names(tCols)[i], names(tCols)[j], names(tCols)[k])
+            }
+        }
+    }
+}
+
+vRefs <- cbind(vRefs$archs, vRefs$edges, vRefs$faces)
 
 ## mutOrientToArchs <-
 ##     Xproj[unlist(allMuts %>% 
 ##                  select(alteration)),] %*%
 ##     vRefs
 ## rownames(Xproj) <- paste(rownames(Xproj), "=1", sep="")
+
+## mutation vectors for aligned drivers
 mutOrientToArchs <-
-    Xproj[unlist(allMuts %>% filter(isAln & isDrivingAlteration) %>% 
-                 select(alteration)),] %*% vRefs
-rownames(mutOrientToArchs) <-
-    unlist(allMuts %>% filter(isAln & isDrivingAlteration) %>% 
-                 select(alteration))
+    ## as_tibble(Xproj) %>% mutate(alteration=rownames(Xproj)) %>%
+    ## filter(alteration %in%
+    ##        (allMuts %>% filter(isAln & isDrivingAlteration) %>% 
+    ##         select(alteration))
+    ##        )
+    as_tibble(Xproj) %>% mutate(alteration=rownames(Xproj)) %>%
+    inner_join(
+        allMuts %>% filter(isAln & isDrivingAlteration) %>% 
+        select(alteration)
+    )
+tmp <- mutOrientToArchs %>% select(-alteration) %>% as.matrix
+rownames(tmp) <-
+    mutOrientToArchs %>% select(alteration) %>% unlist %>% as.character
+mutOrientToArchs <- tmp
+rm(tmp)
+## ## Same, but if there is only one driver, the matrix collapses into
+## ## a vector
+## mutOrientToArchs <-
+##     Xproj[allMuts %>% filter(isAln & isDrivingAlteration) %>% 
+##           select(alteration) %>% unlist %>% as.character,]
+
+## set irrelevant dimensions to 0
+mutOrientToArchs[,setdiff(1:ncol(mutOrientToArchs), 1:(nArchs-1))] <- 0
+## normalize directions
+mutOrientToArchs <- 
+    apply(mutOrientToArchs, 1, function(x) { x / sqrt(sum(x^2))})
+## compute scalar products
+180 * acos(sort(
+          t(mutOrientToArchs) %*% vRefs
+          )) / pi
+mutOrientToArchs <- t(mutOrientToArchs) %*% vRefs
+## rownames(mutOrientToArchs) <-
+##     unlist(allMuts %>% filter(isAln & isDrivingAlteration) %>% 
+##                  select(alteration))
+
 mutOrientToArchs <-
     t(apply(mutOrientToArchs, 1, function(x) {
         x[x < max(x)] <- 0
         return(x)
     }))
+tibble(
+    cancer=cancerType,
+    alteration=rownames(mutOrientToArchs),
+    orientation=colnames(mutOrientToArchs)[
+        apply(mutOrientToArchs, 1, which.max)]) %>%
+    inner_join(mutsAlongFront$Front %>% select(alteration, frequency)) %>% 
+    write_csv(sprintf("%s_aln_driver_orient.csv", altType))
+
 sapply(1:nrow(archProj), function(i) {
     list(rev(sort(mutOrientToArchs[,i]))[1:5])
 })
 
 mutAngleToArchs <-
-    ( t(apply(Xproj[unlist(allMuts %>% filter(isAln & isDrivingAlteration) %>% 
+    ## ( t(apply(Xproj[unlist(allMuts %>% filter(isAln & isDrivingAlteration) %>% 
+    ( t(apply(Xproj[unlist(allMuts %>% filter(isDrivingAlteration) %>% 
                            select(alteration)),], 1, function(x) { x / sqrt(sum(x^2)) })) %*%
       vRefs %>% acos() ) * 360 / (2 * pi)
 ## We compute the angle in the plane spanned by the mutation and
@@ -2000,16 +2497,23 @@ ggplot(enframe(apply(mutAngleToArchs, 1, min))) +
     coord_cartesian(xlim=c(0, 60)) +
     labs(x="angle to archetype [degrees]", y="number of driver mutations") +
     geom_vline(aes(xintercept=60/2)) + theme_grey()
-ggsave("angleToArchetypes.pdf", height=4, width=4)
+ggsave(sprintf("angleToArchetypes_%s.pdf", altType), height=4, width=4)
 sum(apply(mutAngleToArchs, 1, min) < 30)
 sum(apply(mutAngleToArchs, 1, min) > 30)
+sum(apply(mutAngleToArchs, 1, min) < 30) / nrow(mutAngleToArchs)
 
 m <- "GATA3=1"
 m <- "BRAF=1"
+m <- "TP53=1"
 m <- "SMAD4=-1";
 m <- "ERBB2=1";
 m <- "BRCA1=1";
 m <- "CCND3=2"
+m <- "CCNE1=2"
+m <- "CTNNB1=1"
+m <- "CDH1=1"
+m <- "MYC=1"
+m <- "EGFR=1"
 i <- 1
 i <- 2
 i <- 3
@@ -2018,7 +2522,6 @@ i <- 4
 ## save.image(sprintf("alt3Dplots_%s.rda", altType))
 ## load(sprintf("alt3Dplots_%s.rda", altType))
 
-i <- 1;
 sapply(1:nrow(archProj), function(i) {
     m <- names(rev(sort(mutOrientToArchs[,i]))[1])
     if ( mutOrientToArchs[m,i] == 0 ) { return(); }
@@ -2027,44 +2530,83 @@ sapply(1:nrow(archProj), function(i) {
     v <- Xproj[m,1:3]
 
     ptCol <- rep("grey", ncol(Mp))
-    if ( isMetabric ) {
-        ptCol[Mp[gsub("=1", "", m),]==1] <- "red"
-    } else {
-        ptCol[Mp[m,]==1] <- "red"
-    }
+    ## if ( isMetabric ) {
+    ##     ptCol[Mp[gsub("=1", "", m),]==1] <- "red"
+    ## } else {
+    ##     ptCol[Mp[m,]==1] <- "red"
+    ## }
+    ptCol[Mp[m,]==1] <- "red"
 
     cat(sprintf("%s - arch %d\n", m, i))
     open3d()
-    plot3d(posInPCspace[,1:3],
-           ## alpha=.35, col="grey",
+    pp <- dget("mutVec_plotSetup.R")
+    par3d(pp)
+
+    greyAlpha <- ifelse(nArchs<=3, .5, .1);
+    plot3d(posInPCspaceV[,1:3],
            col=ptCol, type="s", shininess=100,
-           ## radius=2,
-           radius=diff(range(archProj)) * 0.007,
-           alpha=.5,
-           box=F, axes=F, aspect=F,
-           ## xlab="PC1", ylab="PC2", zlab="PC3",
-           xlab="", ylab="", zlab="",
+           radius=diff(range(archProjV)) * 0.007,
+           alpha=(ptCol == "red") * (1-greyAlpha) + greyAlpha,
+           ## alpha=.5,
+           box=F, axes=F, aspect=F, xlab="", ylab="", zlab="",
+           ## box=T, axes=T, aspect=T, xlab="PC1", ylab="PC2", zlab="PC3",
            xlim=range(c(archProj[,1], posInPCspace[,1])),
            ylim=range(c(archProj[,2], posInPCspace[,2])),
            zlim=range(c(archProj[,3], posInPCspace[,3])))
     ## spheres3d(hPt, col="green", radius=5)
-    spheres3d(archProj, radius=diff(range(archProj)) * 0.05, col=tCols)
-    ## text3d(archProj[,1], archProj[,2], archProj[,3],
+    spheres3d(archProjV, radius=diff(range(archProjV)) * 0.05, col=tCols)
+    ## text3d(archProjV[,1], archProjV[,2], archProjV[,3],
     ##        allPerms[[topPerm]],
-    ##        ## 1:nrow(archProj),
+    ##        ## 1:nrow(archProjV),
     ##        adj=2.5)
-    sapply(1:(nrow(archProj)-1), function(i) {
-        sapply(seq(i+1, nrow(archProj)), function(j) {
-            segments3d(archProj[c(i,j),1], archProj[c(i,j),2],
-                       archProj[c(i,j),3], col="grey")
+    sapply(1:(nrow(archProjV)-1), function(i) {
+        sapply(seq(i+1, nrow(archProjV)), function(j) {
+            segments3d(archProjV[c(i,j),1], archProjV[c(i,j),2],
+                       archProjV[c(i,j),3], col="grey", lwd=10)
         })
     })
-    arrow3d(c(0, 0, 0) + c(0,-100,0),
-            v*s + c(0,-100,0),
-            width=diff(range(archProj)) * 0.0007)
-    rgl.snapshot(sprintf("mutVec_%s.png", m), fmt="png")
+    cmGrey <- apply(posInPCspaceV[ptCol=="grey",], 2, mean)
+    if ( nArchs == 3 ) {
+        v[3] <- 0;
+        cmGrey[3] <- 0;
+    }
     
-    cat(paste(m, "\n"))
+    v <- (v / sqrt(sum(v^2))) * (diff(range(archProjV)) / 4)
+
+    ## ## Save the scene:
+    ## pp <- par3d(no.readonly=T)
+    ## dput(pp, file="mutVec_plotSetup.R")
+    pp <- dget("mutVec_plotSetup.R")
+    par3d(pp)
+
+    ## Compute the vector that points to the camera
+    ## myAx <- solve(par3d(no.readonly=T)$userMatrix[1:3,1:3])[,1] * 100
+    ## lines3d(c(0, myAx[1]), c(0, myAx[2]), c(0, myAx[3]), col="green")
+    ## myAx <- solve(par3d(no.readonly=T)$userMatrix[1:3,1:3])[,2] * 100
+    ## lines3d(c(0, myAx[1]), c(0, myAx[2]), c(0, myAx[3]), col="blue")
+    myAx <- solve(par3d(no.readonly=T)$userMatrix[1:3,1:3])[,3] * 100
+    ## lines3d(c(0, myAx[1]), c(0, myAx[2]), c(0, myAx[3]), col="red")
+    
+    arrow3d(cmGrey ## + diff(range(archProjV)) * myAx / 400
+           ,
+            cmGrey + v ## + diff(range(archProjV)) * myAx / 400
+           ,
+            width=diff(range(archProjV)) * 0.0007, shininess=100,
+            color="black", type="rotation")
+    ## arrow3d(c(0, 0, 0) + c(-50,100,-50),
+    ##         v*s + c(-50,100,-50),
+    ##         width=diff(range(archProjV)) * 0.0007)
+    rgl.snapshot(sprintf("mutVec_%s.png", m), fmt="png")
+    rgl.close()
+
+    pdf(sprintf("mutVec_hist_%s.pdf", m), height=2, width=3, pointsize=16)
+    par(mar=c(4, 4, 0, 0))
+    h <- hist(90*(1-rratios), 20, freq=F, col="grey", main="", xlim=c(0,90),
+              xlab="Angle to front\n(degrees)", ylab="", lab=c(3, 3, 3))
+    mRatio <- mutsAlongFront[["Front"]] %>% filter(alteration == m) %>%
+        select(fracOnFront) %>% as.numeric
+    abline(v=90*(1-mRatio))
+    dev.off();
     
     ## text3d(s * v[1], s * v[2], s * v[3],
     ##        sub("_CNA$", "", sub("=1$", "", m)),
@@ -2078,30 +2620,32 @@ if ( cancerType == "COAD" ) {
 
     unique(discClin[,"CDE_ID_3226963"])
     ptCol <- (discClin[isPT,"CDE_ID_3226963"] == "MSI-H") + 1
+    ptCol <- c("grey", "red")[ptCol]
     ## ptCol <- (discClin[,"CDE_ID_3226963"] == "MSS") + 1
     ## ptCol <- (discClin[,"CDE_ID_3226963"] == "MSI-L") + 1
     ## ptCol <- as.numeric(as.factor(discClin[,"CDE_ID_3226963"])) - 2
 
     open3d();
-    plot3d(posInPCspace,
-           ## alpha=.35, col="grey",
-           col=ptCol, type="p", size=4, shininess=100, alpha=1,
-           box=F, axes=F, aspect=F,
-           ## xlab="PC1", ylab="PC2", zlab="PC3",
-           xlab="", ylab="", zlab="",
-           xlim=range(archProj[,1]),
-           ylim=range(archProj[,2]),
-           zlim=range(archProj[,3]))
-    ## spheres3d(hPt, col="green", radius=5)
-    spheres3d(archProj, radius=10, col=tCols)
-    ## text3d(archProj[,1], archProj[,2], archProj[,3],
-    ##        allPerms[[topPerm]],
-    ##        ## 1:nrow(archProj),
-    ##        adj=2.5)
-    sapply(1:(nrow(archProj)-1), function(i) {
-        sapply(seq(i+1, nrow(archProj)), function(j) {
-            segments3d(archProj[c(i,j),1], archProj[c(i,j),2],
-                       archProj[c(i,j),3], col="grey")
+    plot3d(posInPCspaceV,
+           col=ptCol, type="s", shininess=100,
+           radius=diff(range(archProjV)) * 0.007,
+           ## alpha=(ptCol == "red") * .9 + .1,
+           ## alpha=1,
+           box=F, axes=F, aspect=F, xlab="", ylab="", zlab="",
+           ## box=T, axes=T, aspect=T, xlab="PC1", ylab="PC2", zlab="PC3",
+           xlim=range(c(archProjV[,1], posInPCspaceV[,1])),
+           ylim=range(c(archProjV[,2], posInPCspaceV[,2])),
+           zlim=range(c(archProjV[,3], posInPCspaceV[,3])))
+    spheres3d(archProjV, radius=diff(range(archProjV)) * 0.05, col=tCols)
+    sapply(1:(nrow(archProjV)-1), function(i) {
+        sapply(seq(i+1, nrow(archProjV)), function(j) {
+            segments3d(archProjV[c(i,j),1], archProjV[c(i,j),2],
+                       archProjV[c(i,j),3], col="grey", lwd=10)
         })
     })
+    
+    pp <- dget("mutVec_plotSetup.R")
+    par3d(pp)
+    rgl.snapshot("COAD_MSI-H.png", fmt="png")
+    rgl.close()
 }

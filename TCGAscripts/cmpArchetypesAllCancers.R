@@ -6,6 +6,8 @@ library(mclust)
 library(tidyverse)
 source("ParTI/TCGAscripts/hallmarkOmeter.inc.R")
 
+useMetabricBRCA <- F;
+
 zMat <- function(mat, maxZ=2.5) {
     ## z-scores a matrix by row, thresholding the max z-score
     ## this helps compare archetypes, giving the same weight to
@@ -26,11 +28,17 @@ cancersTab <-
     rename(cancerType=X1, frac=X2, nArch=X3)
 
 cancerIDs <- as.character(unlist(select(cancersTab, cancerType)))
+## cancerIDs <- setdiff(cancerIDs, c("HNSC", "LUAD"))
 
 ct <- cancerIDs[1]
 MSigDBsig <-
     lapply(cancerIDs, function(ct) {
-        read_csv(sprintf("%s_UCSC/MSigDBenrichment_continuous_significant.csv", ct))
+        if ( useMetabricBRCA && ct == "BRCA" ) {
+            read_csv("~/work/cancerTaskAtlas/brca_metabric/MSigDBenrichment_continuous_significant.csv")
+        } else {
+            read_csv(sprintf("%s_UCSC/MSigDBenrichment_continuous_significant.csv",
+                             ct))
+        }
     })
 names(MSigDBsig) <- cancerIDs;
 
@@ -65,10 +73,14 @@ isSignifInNcancers[isSignifInNcancers == length(MSigDBsig)]
 
 MSigDBall <-
     lapply(cancerIDs, function(ct) {
-        read_csv(
-            sprintf("%s_UCSC/MSigDBenrichment_continuous_All.csv", ct)) %>%
+        csvFile <- sprintf("%s_UCSC/MSigDBenrichment_continuous_All.csv", ct);
+        if ( useMetabricBRCA && ct == "BRCA" ) {
+            csvFile <- "~/work/cancerTaskAtlas/brca_metabric/MSigDBenrichment_continuous_All.csv";
+        }
+        read_csv(csvFile) %>%
             select(`archetype #`, `Feature Name`, `Mean Difference`) %>%
-            mutate(cancerType=ct)
+            mutate(cancerType=ct)##  %>%
+            ## mutate(`Feature Name`=str_replace(`Feature Name`, "_", " "))
     })
 names(MSigDBall) <- cancerIDs;
 
@@ -77,6 +89,9 @@ multip <- sort(table(unlist(sapply(MSigDBall, function(tab) {
 }))))
 plot(multip)
 length(multip)
+sum(multip>=7)
+## multip[multip==7]
+multip["REACTOME PEROXISOMAL LIPID METABOLISM"]
 
 tMSigDBall <-
     bind_rows(MSigDBall) %>%
@@ -91,11 +106,17 @@ GOvsArchs <-
     tMSigDBall %>%
     select(archName, `Feature Name`, `Mean Difference`) %>%
     spread(archName, `Mean Difference`) %>%
-    mutate(featName=`Feature Name` %>% fmtMSigDBnames())
+    mutate(featName=`Feature Name` %>% fmtMSigDBnames()) %>%
+    drop_na(); #new Oct 22nd, to deal with Metabric in which different
+               #genes are measured
 GOvsArchsMat <-
     as.matrix(select(GOvsArchs, -featName, -`Feature Name`))
 rownames(GOvsArchsMat) <- as.data.frame(GOvsArchs[,"Feature Name"])[,1]
 colnames(GOvsArchsMat) <- colnames(GOvsArchs)[c(-1,-ncol(GOvsArchs))]
+
+## ## Remove features that change less than 0.1
+## sum(apply(abs(GOvsArchsMat), 1, max) < 0.1)
+## ## Only one feature changes less than 0.1
 
 GOvsArchsMat0 <- zMat(GOvsArchsMat)
 range(GOvsArchsMat)
@@ -122,15 +143,16 @@ dev.off();
 ## heatmap(GOvsArchsSmaller, scale="none",
 ##         hclustfun=function(d) { hclust(d, method="ward.D") })
 
-toShow <-
+tToShow <-
     as_tibble(unlist(sapply(names(toShow), function(x) {
         sprintf("%s,%s", x, toShow[[x]])
     }))) %>%
     separate(value, into=c("Group", "Feature Name"), sep=",")
 
-GOvsArchsSmaller <- GOvsArchsMat[as.data.frame(toShow)[,"Feature Name"],]
+setdiff(as.data.frame(tToShow)[,"Feature Name"], rownames(GOvsArchsMat))
+GOvsArchsSmaller <- GOvsArchsMat[as.data.frame(tToShow)[,"Feature Name"],]
 rownames(GOvsArchsSmaller) <-
-    toShow %>%
+    tToShow %>%
     mutate(featName=`Feature Name` %>% fmtMSigDBnames()
 
            ) %>%
@@ -140,9 +162,34 @@ rownames(GOvsArchsSmaller) <-
 ##         hclustfun=function(d) { hclust(d, method="ward.D") })
 
 rowColNum <- as.numeric(as.factor(
-    as.data.frame(toShow)[,"Group"]));
+    as.data.frame(tToShow)[,"Group"]));
 rowColPal <- rainbow(length(unique(rowColNum)))
 
+
+## GOvsArchsMat
+scalings <- seq(1, 10, len=100);
+resSDs <- sapply(scalings, function(s) {
+    sd(quantile(s*GOvsArchsMat[,grep("BRCA", colnames(GOvsArchsMat))],
+                seq(0,1,by=.01)) -
+       quantile(GOvsArchsMat[,setdiff(1:ncol(GOvsArchsMat),
+                                      grep("BRCA", colnames(GOvsArchsMat)))],
+                seq(0,1,by=.01)))
+})
+plot(scalings, resSDs, type="l")
+## myScaling <- 2.5
+myScaling <- scalings[which.min(resSDs)]
+points(scalings[which.min(resSDs)], resSDs[which.min(resSDs)], pch=20, cex=2)
+
+plot(density(myScaling*GOvsArchsMat[,grep("BRCA", colnames(GOvsArchsMat))]), col="red")
+lines(density(
+    GOvsArchsMat[,setdiff(1:ncol(GOvsArchsMat),
+                          grep("BRCA", colnames(GOvsArchsMat)))]))
+
+if ( useMetabricBRCA ) {
+    for (i in grep("BRCA", colnames(GOvsArchsSmaller)) ) {
+        GOvsArchsSmaller[,i] <- myScaling * GOvsArchsSmaller[,i]
+    }
+}
 GOvsA0 <- zMat(GOvsArchsSmaller)
 ## ## Z-transform by cancer type
 ## ct <- "BLCA";
@@ -210,6 +257,10 @@ range(GOvsA0)
 
 h <- hclust(dist(t(GOvsA0)), method="ward.D2")
 
+heat.colors.rev <- function(...) {
+    rev(heat.colors(...))
+}
+
 pdf("cmpArchetypesAllCancers.pdf", height=6, width=8)
 h1 <- heatmap.2(GOvsA0,
                 scale="none",
@@ -217,8 +268,7 @@ h1 <- heatmap.2(GOvsA0,
                 hclustfun=function(d) { hclust(d, method="ward.D2") },
                 ## dendrogram="column", Rowv=NA, RowSideColors=rowColPal[rowColNum],
                 trace="none",
-                col="heat.colors",
-                ## col="heat.colors",
+                col="heat.colors.rev",
                 ## breaks=seq(-max(abs(GOvsArchsSmaller)),
                 ##            max(abs(GOvsArchsSmaller)), len=256),
                 margins=c(5, 15))
@@ -232,8 +282,7 @@ h2 <- heatmap.2(GOvsA0,
                 hclustfun=function(d) { hclust(d, method="ward.D2") },
                 dendrogram="column", Rowv=NA, RowSideColors=rowColPal[rowColNum],
                 trace="none",
-                col="heat.colors",
-                ## col="heat.colors",
+                col="heat.colors.rev",
                 ## breaks=seq(-max(abs(GOvsArchsSmaller)),
                 ##            max(abs(GOvsArchsSmaller)), len=256),
                 margins=c(5, 15))
@@ -242,41 +291,76 @@ dev.off()
 ## Determine the number of clusters:
 
 ## see how many clusters it finds to be optimal, set it to search for
-## at least 1 model and up 10.
+## at least 1 model and up 10.d
 d_clust <- Mclust(t(as.matrix(GOvsArchsMat0)),
-                  model="EII", G=1:6)
+                  model="EII", G=1:10)
 plot(d_clust, what="BIC") # 3-4 clusters on all MSigDBs
 
-d_clust <- Mclust(t(as.matrix(GOvsA0)), ## model="VVI",
-                  model="EII", G=1:7)
+library(ade4)
+wholeMatPC <- dudi.pca(t(GOvsArchsMat0), center=F, scale=F, scannf=F, nf=50)
+plot(wholeMatPC$li)
+d_clust <- Mclust(as.matrix(wholeMatPC$li), model="EII", G=2:10)
+plot(d_clust, what="BIC") # 3-4 clusters on all MSigDBs
 
-pdf("superArchetypes_Mclust_BIC_hallmarks.pdf", height=4, width=4)
-plot(d_clust, what="BIC") # 4 clusters
+table(d_clust$classification)
+
+d_clust <- Mclust(t(as.matrix(GOvsA0)), ## model="VVI",
+                  model="EII", G=1:6)
+d_clust <- Mclust(t(as.matrix(GOvsA0)), G=1:10)
+d_clust <- Mclust(t(as.matrix(GOvsA0)), G=2:10, model="EII")
+
+myG <- which.max(d_clust$BIC) + 1
+myG <- 5
+
+pdf("superArchetypes_Mclust_BIC_hallmarks.pdf", height=2.5, width=3,
+    pointsize=16)
+par(mar=c(4,4,0,0))
+plot(d_clust, what="BIC", xlab="# clusters")
+abline(v=myG, lty=2)
 dev.off();
 
-myG <- which.max(d_clust$BIC)
-myG <- 4
+## myG <- 5
+## myG <- 4
 
 saBy <- "GMall"
 saBy <- "hclust"
 saBy <- "GMhallmarks"
-for ( saBy in c("GMall", "GMhallmarks", "hclust")) {
+## for ( saBy in c("GMall", "hclust", "GMhallmarks")) {
+    cat(sprintf("%s\n", saBy))
     if ( str_detect(saBy, "^GM") ) {
-        if ( saBy == "GMall" ) {
-            d_clust <- Mclust(t(as.matrix(GOvsArchsMat0)), model="VVI", G=myG)
-        } else {
-            d_clust <- Mclust(t(as.matrix(GOvsA0)), model="VVI", G=myG)
-        }
+        ## if ( saBy == "GMall" ) {
+        ##     d_clust <- Mclust(t(as.matrix(GOvsArchsMat0)), model="EII", G=myG)
+        ## } else {
+        ##     d_clust <- Mclust(t(as.matrix(GOvsA0)), model="EII", G=myG)
+        ## }
         saMemb <-
             sapply(unique(d_clust$classification), function(x) {
                 names(d_clust$classification)[x == d_clust$classification]
             })
-        archNames <-
-            c("Cell division", #
-              "Biomass & energy", #
-              "Invasion & signaling", #
-              ## "Immune interaction", #
-              "Peroxisome activity") #
+        if ( myG == 4 ) {
+            archNames <-
+                c("Invasion & signaling", #
+                  "Cell division", #
+                  "Lipogenesis",
+                  "Biomass & energy" #
+                  # "Immune interaction" #
+                  )
+        } else if ( myG == 5 ) {
+            ## archNames <-
+            ##     c("Invasion & signaling", #
+            ##       "Cell division", #
+            ##       "Lipogenesis",
+            ##       "Biomass & energy", #
+            ##       "Immune interaction" #
+            ##       )
+            archNames <-
+                c("Invasion & signaling", #
+                  "Immune interaction", #
+                  "Lipogenesis",
+                  "Cell division", #
+                  "Biomass & energy" #
+                  )
+        }
         names(saMemb) <- archNames
         write_rds(saMemb, sprintf("saMemb_%s.rds", saBy))
 
@@ -293,11 +377,12 @@ for ( saBy in c("GMall", "GMhallmarks", "hclust")) {
             gather(-MSigDB, key="archetype", value="SE")
     } else {
         nArchPerClust <- c(4, 4 + 9, 5, 4+5)
-        archNames <- c("Biomass & energy",
-                       "Peroxisome activity",
+        nArchPerClust <- c(5+6, 4, 5, 8);
+        archNames <- c("Lipogenesis",
+                       "Biomass & energy",
+                       "Cell division",
                        ## "Unknown",
-                       "Invasion & signaling",
-                       "Cell division")
+                       "Invasion & signaling")
         sum(nArchPerClust) == length(h1$colInd)
         
         ## Make hall-mark like profiles for each super-archetype
@@ -357,7 +442,33 @@ for ( saBy in c("GMall", "GMhallmarks", "hclust")) {
         spread(ca, mb, fill="") %>%
         as.data.frame() %>% 
         write_tsv(sprintf("superArchetype_vs_cancerType_%s.tsv", saBy))
-}
+## }
+
+##################################################
+
+saMembReord <- 
+    saMemb[c("Cell division", "Biomass & energy", "Lipogenesis",
+             "Immune interaction", "Invasion & signaling")]
+
+colColNum <-
+    sapply(names(saMembReord), function(x) { rep(x, length(saMembReord[[x]])) }) %>% 
+    unlist %>% as.character %>% as.factor %>% as.numeric
+colColPal <- rainbow(length(saMembReord))
+## colColPal <- arcCols
+
+pdf("cmpArchetypesAllCancers_byGMs.pdf", height=6, width=8)
+h2 <- heatmap.2(GOvsA0[,as.character(unlist(saMembReord))],
+                scale="none",
+                hclustfun=function(d) { hclust(d, method="ward.D2") },
+                dendrogram="row", Colv=NA, ColSideColors=colColPal[colColNum],
+                trace="none",
+                col="heat.colors.rev",
+                ## breaks=seq(-max(abs(GOvsArchsSmaller)),
+                ##            max(abs(GOvsArchsSmaller)), len=256),
+                margins=c(5, 15))
+dev.off()
+
+
 
 ## ## Maybe the Unknown archetype is a superposition of DNA replicat ion
 ## ## & mitosis and peroxisome activity!?
@@ -405,8 +516,11 @@ for ( saBy in c("GMall", "GMhallmarks", "hclust")) {
 ## Visualize archetypes from different cancer types in 3D PCA
 MSigDBall <-
     lapply(c("ALL", cancerIDs), function(ct) {
-        read_csv(
-            sprintf("%s_UCSC/MSigDBenrichment_continuous_All.csv", ct)) %>%
+        csvFile <- sprintf("%s_UCSC/MSigDBenrichment_continuous_All.csv", ct);
+        if ( useMetabricBRCA && ct == "BRCA" ) {
+            csvFile <- "~/work/cancerTaskAtlas/brca_metabric/MSigDBenrichment_continuous_All.csv";
+        }
+        read_csv(csvFile) %>%
             select(`archetype #`, `Feature Name`, `Mean Difference`) %>%
             mutate(cancerType=ct)
     })
@@ -420,7 +534,8 @@ length(multip)
 
 tMSigDBall <-
     bind_rows(MSigDBall) %>%
-    mutate(archName=sprintf("%s %d", cancerType, `archetype #`))
+    mutate(archName=sprintf("%s %d", cancerType, `archetype #`)) %>%
+    drop_na()
 
 ggplot(tMSigDBall) +
     geom_tile(aes(x=archName, y=str_trunc(`Feature Name`, width=40),
@@ -431,11 +546,18 @@ GOvsArchs <-
     tMSigDBall %>%
     select(archName, `Feature Name`, `Mean Difference`) %>%
     spread(archName, `Mean Difference`) %>%
-    mutate(featName=`Feature Name` %>% fmtMSigDBnames())
+    mutate(featName=`Feature Name` %>% fmtMSigDBnames()) %>%
+    drop_na()
 GOvsArchsMat <-
     as.matrix(select(GOvsArchs, -featName, -`Feature Name`))
 rownames(GOvsArchsMat) <- as.data.frame(GOvsArchs[,"Feature Name"])[,1]
 colnames(GOvsArchsMat) <- colnames(GOvsArchs)[c(-1,-ncol(GOvsArchs))]
+
+if ( useMetabricBRCA ) {
+    for (i in grep("BRCA", colnames(GOvsArchsMat)) ) {
+        GOvsArchsMat[,i] <- myScaling * GOvsArchsMat[,i]
+    }
+}
 
 ## PCA
 library(ade4)
@@ -477,27 +599,48 @@ text(rep(0.3, length(levels(as.factor(gsub(" .", "", rownames(dudi1$li)))))),
      col=1:length(levels(as.factor(gsub(" .", "", rownames(dudi1$li))))))
 
 pdf("cmpArchetypesAllCancers_PCA2D.pdf", height=7, width=7);
-plot(dudi1$li[,1:2],
-     col=as.numeric(as.factor(gsub(" .", "", rownames(dudi1$li)))),
-     pch=20, cex=2)
-for (cType in levels(as.factor(gsub(" .", "", rownames(dudi1$li))))) {
-    idcs <- grep(paste("^", cType, sep=""), rownames(dudi1$li))
-    for (i in 1:(length(idcs)-1)) {
-        for (j in 2:length(idcs)) {
-            lines(
-                dudi1$li[idcs[c(i,j)], 1],
-                dudi1$li[idcs[c(i,j)], 2],
-                lty=2,
-                col=which(cType == levels(as.factor(gsub(" .", "", rownames(dudi1$li)))))
-            )
-        }
-    }
-}
+justALL <- grep("ALL", rownames(dudi1$li));
+noALL <- setdiff(1:nrow(dudi1$li), grep("ALL", rownames(dudi1$li)))
+plot(dudi1$li[noALL,1:2],
+     col=as.numeric(as.factor(gsub(" .", "", rownames(dudi1$li)[noALL]))),
+     pch=20, cex=2,
+     xlim=range(dudi1$li[,1])*1.25, ylim=range(dudi1$li[,2])*1.25)
+points(dudi1$li[justALL,1:2], pch=3, col=2)
+## for (cType in levels(as.factor(gsub(" .", "", rownames(dudi1$li))))) {
+##     idcs <- grep(paste("^", cType, sep=""), rownames(dudi1$li))
+##     for (i in 1:(length(idcs)-1)) {
+##         for (j in 2:length(idcs)) {
+##             lines(
+##                 dudi1$li[idcs[c(i,j)], 1],
+##                 dudi1$li[idcs[c(i,j)], 2],
+##                 lty=2,
+##                 col=which(cType == levels(as.factor(gsub(" .", "", rownames(dudi1$li)))))
+##             )
+##         }
+##     }
+## }
 
-text(dudi1$li[,1:2], labels=gsub("^[^ ]*", "", rownames(dudi1$li)),
+text(dudi1$li[noALL,1:2],
+     labels=gsub("^[^ ]*", "", rownames(dudi1$li)[noALL]),
      adj=2)
+text(dudi1$li[justALL,1:2],
+     labels=gsub("^[^ ]*", "", rownames(dudi1$li)[justALL]),
+     adj=2, col=2)
 legend("topleft",
-       levels(as.factor(gsub(" .", "", rownames(dudi1$li)))),
-       col=1:length(levels(as.factor(gsub(" .", "", rownames(dudi1$li))))),
+       levels(as.factor(gsub(" .", "", rownames(dudi1$li)[noALL]))),
+       col=1:length(levels(as.factor(gsub(" .", "", rownames(dudi1$li)[noALL])))),
        pch=20)
+
+legend("topright",
+       c("tissue-specific", "all tissues"), pch=c(20, 3))
+
+inSuperArch <- saMemb[[1]]
+sapply(saMemb, function(inSuperArch) {
+    dudi1$li[inSuperArch,1:2]
+    ade4:::scatterutil.ellipse(dudi1$li[inSuperArch,1],
+                               dudi1$li[inSuperArch,2],
+                               rep(1, length(inSuperArch)),
+                               cell=1.5, ax=F, coul=2)
+})
 dev.off()
+

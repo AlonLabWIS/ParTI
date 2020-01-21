@@ -27,12 +27,19 @@ geneExpression = dlmread('expMatrix.csv', ',');
 % clear f x;
 % minExpr = 2;
 % minExpr = 8;
-minExpr = quantile(mean(geneExpression,1), myQuantile);
-selGenes = find(mean(geneExpression,1) > minExpr);
-geneExpression = geneExpression(:,selGenes);
-% geneNames = geneNames(selGenes,:);
 
-% [arc, arcOrig, pc] = ParTI_lite(geneExpression);
+%minExpr = quantile(mean(geneExpression,1), myQuantile);
+%selGenes = find(mean(geneExpression,1) > minExpr);
+if length(strfind(origPath, 'metabric')) == 1
+    minExpr = quantile(mean(geneExpression,1), myQuantile);
+    selGenes = find(mean(geneExpression,1) >= minExpr);
+else
+    genePctilesAvg = dlmread('../genePctilesAvg.tab', ',');
+    selGenes = find(genePctilesAvg >= myQuantile);   
+end
+geneExpression = geneExpression(:,selGenes);
+
+
 
 %% Fill in number of desired archetypesand quit after computing p-value
 global ForceNArchetypes; ForceNArchetypes = nArchetypes;

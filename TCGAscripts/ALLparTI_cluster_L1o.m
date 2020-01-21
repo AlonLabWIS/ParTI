@@ -20,7 +20,7 @@ geneNames = importdata('geneListExp.list');
 % archetypes. This is helpful to characterize the archetypes.
 [GOExpression,GONames,~,GOcat2Genes] = MakeGOMatrix(geneExpression, geneNames, ...
                 {'../ParTI/MSigDB/c2.cp.v4.0.symbols.gmt', '../ParTI/MSigDB/c5.all.v4.0.symbols.gmt'}, ...
-                100); %FIXME 100 for leave one out, 10 for more in-depth
+                10); %FIXME 100 for leave one out, 10 for more in-depth
 
 % GOExpression is a matrix of 2106 patients x 162 GO categories, and
 % GONames contains the name of the GO categories.
@@ -36,18 +36,6 @@ geneNames = importdata('geneListExp.list');
 % features but instead examine them in a separate analysis
 %contAttrNames = [contAttrNames, GONames];
 %contAttr = [contAttr, GOExpression];
-
-
-%% Select genes
-%minExpr = quantile(mean(geneExpression,1), myQuantile);
-%selGenes = find(mean(geneExpression,1) >= minExpr);
-%geneExpression = geneExpression(:,selGenes);
-%geneNames = geneNames(selGenes,:);
-genePctilesAvg = dlmread('../genePctilesAvg.tab', ',');
-selGenes = find(genePctilesAvg >= myQuantile);
-cell2csv('geneNamesAfterExprFiltering.list', geneNames);
-geneExpression = geneExpression(:,selGenes);
-geneNames = geneNames(selGenes,:);
 
 binSize=50/size(geneExpression,1); % 50 samples per bin by default
 if binSize < .05
@@ -125,112 +113,9 @@ end
 
 clear pc coefs1 errs pval;
 
-%% Genes
-close all
-ParTI_lite(geneExpression, 1, size(arcOrig,1), [], ...
-    [], 0, geneNames, geneExpression, [], binSize, ...
-    strcat(origPath, '/geneEnrichment'), arcOrig);
-
-%% Clinical features
-close all
-ParTI_lite(geneExpression, 1, size(arcOrig,1), discrAttrNames, ...
-    discrAttr, 0, contAttrNames, contAttr, [], binSize, ...
-    strcat(origPath, '/clinicalEnrichment'), arcOrig);
-
-%% Clinical features for each cancer type separately
-ctIdx = find(strcmp(discrAttrNames, string('cancer type')));
-cTypes = unique(discrAttr(:,ctIdx));
-i = 1;
-for i = 1:size(cTypes,1)
-    close all
-    cType = cTypes(i,1);
-    tIdcs = find(strcmp(discrAttr(:,ctIdx), cType));
-    ParTI_lite(geneExpression(tIdcs,:), 1, size(arcOrig,1), discrAttrNames, ...
-               discrAttr(tIdcs,:), 0, contAttrNames, contAttr(tIdcs,:), [], ...
-               50 / length(tIdcs), ...
-               strcat(origPath, '/clinicalEnrichment', cType{1,1}), arcOrig);
-end
-
-%% MSigDB gene groups
-clear contAttr;
-close all
-ParTI_lite(geneExpression, 1, size(arcOrig,1), [], [], ...
-    0, GONames, GOExpression, [], binSize, ...
-    strcat(origPath, '/MSigDBenrichment'), arcOrig);
-
-%% MSigDB gene groups for each cancer type separately
-i = 1;
-for i = 1:size(cTypes,1)
-    close all
-    cType = cTypes(i,1);
-    tIdcs = find(strcmp(discrAttr(:,ctIdx), cType));
-    ParTI_lite(geneExpression(tIdcs,:), 1, size(arcOrig,1), [], [], ...
-               0, GONames, GOExpression(tIdcs,:), [], 50 / length(tIdcs), ...
-               strcat(origPath, '/MSigDBenrichment', cType{1,1}), arcOrig);
-end
-
 %% MSigDB gene groups with leave-one-out
 %[arc, arcOrig, pc, errs, pval] =
 ParTI(geneExpression, 1, size(arcOrig,1), [], [], ...
     0, GONames, GOExpression, GOcat2Genes, binSize, ...
     strcat(origPath, '/MSigDBenrichment_l1o'), arcOrig);
-%[arc, arcOrig, pc, errs, pval] = ParTI(geneExpression, 1, 8, discrAttrNames, ...
-%    discrAttr, 0, GONames, GOExpression, GOcat2Genes, 0.1, ...
-%    strcat(origPath, '/clinicalMSigDBpValEnrichment'));
 
-%% Mutations
-clear GOExpression GONames GOcat2Genes;
-
-mut = dlmread(strcat(origPath, '/mutMatrix_reOrdered_booleanized_justData.csv'), ',');
-mutNames = importdata(strcat(origPath, '/mutMatrix_reOrdered_booleanized_geneNames.list'));
-mut = mut(noNormal,:);
-
-% Project mutations to gene groups
-%posMut = find(cellfun('length', regexp(mutNames, '=1$')') > 0);
-%[GOmut,GOmutNames,~,GOcat2mutGenes] = MakeGOMatrix(mut(:,posMut), strrep(mutNames(posMut), '=1', ''), ...
-%                {'MSigDB/c2.cp.v4.0.symbols.gmt', 'MSigDB/c5.all.v4.0.symbols.gmt'}, ...
-%                5);
-
-close all
-ParTI_lite(geneExpression, 1, size(arcOrig,1), mutNames, ...
-    mut, -1, [], [], [], binSize, ...
-    strcat(origPath, '/mutEnrichment'), arcOrig);
-
-%close all
-%ParTI_lite(geneExpression, 1, ForceNArchetypes, [], ...
-%    [], [], GOmutNames, GOmut, [], 0.1, ...
-%    strcat(origPath, '/MSigDBmutEnrichment'), arcOrig);
-%clear GOmut GOmutNames GOcat2mutGenes;
-
-%% Mutations enrichment for each cancer type separately
-i = 1;
-for i = 1:size(cTypes,1)
-    close all
-    cType = cTypes(i,1);
-    tIdcs = find(strcmp(discrAttr(:,ctIdx), cType));
-    ParTI_lite(geneExpression(tIdcs,:), 1, size(arcOrig,1), mutNames, ...
-        mut(tIdcs,:), -1, [], [], [], 50 / length(tIdcs), ...
-        strcat(origPath, '/mutEnrichment', cType{1,1}), arcOrig);
-end
-
-
-%% Copy number alterations
-clear mut mutNames pc;
-
-cop = dlmread(strcat(origPath, '/copMatrix_reOrdered_booleanized_justData.csv'), ',');
-copNames = importdata(strcat(origPath, '/copMatrix_reOrdered_booleanized_geneNames.list'));
-
-close all
-ParTI_lite(geneExpression, 1, size(arcOrig,1), copNames, cop, ...
-    0, [], [], [], binSize, ...
-    strcat(origPath, '/cnvEnrichment'), arcOrig);
-
-
-%% Finally, we perform the compete analysis, including randomization
-% controls and archetype error estimation.
-% close all
-% [arc, arcOrig, pc, errs, pval, coefs1] = ParTI(geneExpression, 5);
-
-%[arc, arcOrig, pc, errs, pval] = ParTI(geneExpression, 1, 8, discrAttrNames, ...
-%    discrAttr, 0, GONames, GOExpression, GOcat2Genes, 0.1, ...
-%    strcat(origPath, '/clinicalMSigDBpValEnrichment'));

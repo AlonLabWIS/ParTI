@@ -1,7 +1,7 @@
 %% ParTI pipeline for TCGA datasets
-addpath ../ParTI/
+addpath(genpath('../ParTI/'))
 origPath = pwd;
-myQuantile = 0.1;
+myQuantile = 0.0;%Metabric was .3
 nArchetypes = 4;
 
 global ForceNArchetypes; ForceNArchetypes = nArchetypes;
@@ -20,8 +20,9 @@ geneNames = importdata('geneListExp.list');
 % archetypes. This is helpful to characterize the archetypes.
 [GOExpression,GONames,~,GOcat2Genes] = MakeGOMatrix(geneExpression, geneNames, ...
                 {'../ParTI/MSigDB/c2.cp.v4.0.symbols.gmt', '../ParTI/MSigDB/c5.all.v4.0.symbols.gmt'}, ...
-                20);
-
+                10);
+GONames = regexprep(GONames, '_', ' ');
+            
 % GOExpression is a matrix of 2106 patients x 162 GO categories, and
 % GONames contains the name of the GO categories.
 % GOcat2Genes is a boolean matrix of genes x GO categories which
@@ -39,8 +40,13 @@ geneNames = importdata('geneListExp.list');
 
 
 %% Select genes
-minExpr = quantile(mean(geneExpression,1), myQuantile);
-selGenes = find(mean(geneExpression,1) >= minExpr);
+if length(strfind(origPath, 'metabric')) == 1
+    minExpr = quantile(mean(geneExpression,1), myQuantile);
+    selGenes = find(mean(geneExpression,1) >= minExpr);
+else
+    genePctilesAvg = dlmread('../genePctilesAvg.tab', ',');
+    selGenes = find(genePctilesAvg >= myQuantile);   
+end
 geneExpression = geneExpression(:,selGenes);
 geneNames = geneNames(selGenes,:);
 cell2csv('geneNamesAfterExprFiltering.list', geneNames);
@@ -71,9 +77,9 @@ end
 % to prevent the characters following underscores from appearing in indice
 % position.
 discrAttrNames = regexprep(discrAttrNames, '_', ' ');
-if exist('GOnames', 'var')
-    GONames = regexprep(GONames, '_', ' ');
-end
+%if exist('GOnames', 'var')
+%    GONames = regexprep(GONames, '_', ' ');
+%end
 
 %% Remove normal tissues
 featIdx = find(strcmp(discrAttrNames, 'sample type'));
@@ -81,7 +87,7 @@ if size(featIdx, 2) > 0
     noNormal = find(strcmp(discrAttr(:,featIdx), 'Primary Tumor') == 1);
     %noNormal = find(strcmp(discrAttr(:,featIdx), 'Solid Tissue Normal') == 1);
     geneExpression = geneExpression(noNormal,:);
-    if exist('GOnames', 'var')
+    if exist('GONames', 'var')
         GOExpression = GOExpression(noNormal,:);
     end
     discrAttr = discrAttr(noNormal,:);
@@ -91,8 +97,8 @@ else
 end
 
 binSize=50/size(geneExpression,1); % 50 samples per bin by default
-if size(geneExpression,1) * binSize > 100
-    binSize = 100 / size(geneExpression,1);
+if binSize < .05
+    binSize = .05; %5% bin size at least
 end
 
 %% We are now ready to perform Pareto Task Inference.
@@ -123,12 +129,7 @@ else
     [arc, arcOrig, pc, coefs1] = ParTI_lite(geneExpression, 1, ...
         10, [], [], 0, [], [], [], binSize, ...
         strcat(origPath, '/ParTI'));
-
-    %save(strcat(origPath, '/arcs_dims.tsv'), 'arc', '-ascii')
-    %save(strcat(origPath, '/arcsOrig_genes.tsv'), 'arcOrig', '-ascii')
-    %save(strcat(origPath, '/pcsOrig_samplesXdims.tsv'), 'pc', '-ascii')
-    %save(strcat(origPath, '/projOrig_varsXdims.tsv'), 'coefs1', '-ascii')
-    
+   
     save(strcat(origPath, '/arcs_dims.tsv'), 'arc', '-ascii')
     csvwrite(strcat(origPath, '/arcs_dims.csv'), arc)
     save(strcat(origPath, '/arcsOrig_genes.tsv'), 'arcOrig', '-ascii')
@@ -176,7 +177,7 @@ mut = mut(noNormal,:);
 %                 5);
 
 close all
-ParTI_lite(geneExpression, 1, size(arcOrig,1), mutNames, ...
+ParTI_lite(geneExpression, 1, size(arcOrig,1), mutNames, ...2
     mut, -1, [], [], [], binSize, ...
     strcat(origPath, '/mutEnrichment'), arcOrig);
 
@@ -198,11 +199,11 @@ ParTI_lite(geneExpression, 1, size(arcOrig,1), copNames, cop, ...
     0, [], [], [], binSize, ...
     strcat(origPath, '/cnvEnrichment'), arcOrig);
 
-
 %% Finally, we perform the compete analysis, including randomization
 % controls and archetype error estimation.
 % close all
-[arc, arcOrig, pc] = ParTI(geneExpression);
+
+%[arc, arcOrig, pc] = ParTI(geneExpression);
 
 %[arc, arcOrig, pc, errs, pval] = ParTI(geneExpression, 1, 8, discrAttrNames, ...
 %    discrAttr, 0, GONames, GOExpression, GOcat2Genes, 0.1, ...

@@ -3,45 +3,66 @@ rm(list=ls())
 library(tidyverse)
 
 cancerIDs <- read.table("../TCGA_frac_nArchs.tab", h=F, as.is=T)[,1]
-cancerIDs <- setdiff(cancerIDs, "SYNT")
-cancerIDs <- setdiff(cancerIDs, c("LUAD", "HNSC"))
+cancerIDs <- setdiff(cancerIDs, c("SYNT", "STAD"))
+#STAD has a different gene set
+
+## Merge gene expression data from different cancers, focusing on
+## ubiquitous genes
 
 cancerID <- cancerIDs[1]
 
 ##################################################
 ## Merge gene expression
 
-## allExpr <- 
-##     sapply(cancerIDs,
-##            function(cancerID) {
-##                cat(sprintf("Processing %s\n", cancerID))
-##                expr <- read_tsv(sprintf("../%s_UCSC/expMatrix.tsv", cancerID),
-##                                 col_names=F)
-##                expr <- as.data.frame(expr)
-##                rownames(expr) <- expr[,1]
-##                expr <- expr[,-1]
-##                clinProps <-
-##                    read_tsv(sprintf("../%s_UCSC/discreteClinicalData_reOrdered.tsv",
-##                                     cancerID))
-##                isNormal <- clinProps[,"sample_type"] == "Solid Tissue Normal"
-##                isPrimary <- clinProps[,"sample_type"] == "Primary Tumor"
-##                avgExpr <- apply(expr[isPrimary,], 2, mean)
-##                ## avgExpr <- apply(expr, 2, mean)
-##                expr0 <- t(apply(expr, 1, function(x) { x - avgExpr } ))
-               
-##                ## length(apply(expr, 1, function(x) { 1 }))
-##                ## length(apply(expr, 2, function(x) { 1 }))
-               
-##                ## expr <- read.table(sprintf("../%s_UCSC/expMatrix.tsv", cancerID),
-##                ##                    h=F, as.is=T, row.names=1)
-##                ## ## Set the mean expression for each gene to 0:
-##                ## expr0 <- apply(expr, 2, function(x) { x - mean(x) } )
-##                ## setTxtProgressBar(pb, which(cancerID == cancerIDs) / length(cancerIDs))
-##                return(expr0);
-##            })
-## save(allExpr, file="allExpr.rda");
-load("allExpr.rda"); ## allExpr has all tumors centored on primary tumors
+## genePctiles <- 
+##     lapply(cancerIDs, function(cancerID) {
+##         cat(sprintf("Processing %s\n", cancerID))
+##         expr <- read_tsv(sprintf("../%s_UCSC/expMatrix.tsv", cancerID),
+##                          col_names=F)
+##         expr <- as.data.frame(expr)
+##         rownames(expr) <- expr[,1]
+##         expr <- expr[,-1]
 
+##         genes <- read_tsv(sprintf("../%s_UCSC/geneListExp.list", cancerID),
+##                           col_names=F)
+##         colnames(expr) <- unlist(genes[,1])
+        
+##         clinProps <-
+##             read_tsv(sprintf("../%s_UCSC/discreteClinicalData_reOrdered.tsv",
+##                              cancerID))
+##         isNormal <- clinProps[,"sample_type"] == "Solid Tissue Normal"
+##         isPrimary <- clinProps[,"sample_type"] == "Primary Tumor"
+##         pctiles <- apply(expr[isPrimary,], 1, rank) / ncol(expr)
+##         medPctiles <- apply(pctiles, 1, median)
+##         names(medPctiles) <- colnames(expr)
+        
+##         return(enframe(medPctiles))
+##     })
+## save(genePctiles, file="genePctiles.rda")
+load("genePctiles.rda")
+i <- 2
+allGenePctiles <- genePctiles[[1]]
+for (i in 2:length(genePctiles)) {
+    allGenePctiles <- inner_join(allGenePctiles, genePctiles[[i]], by="name")
+}
+## sum((allGenePctiles %>%
+##     group_by(name) %>% summarize_all(mean) %>% .[,"name"] %>% unlist
+##     %>% table)>1)
+sum((allGenePctiles %>% .[,"name"] %>% unlist %>% table)>1) == 0 #are names unique?
+
+allGenePctiles <- as.data.frame(allGenePctiles)
+rownames(allGenePctiles) <- allGenePctiles[,1]
+allGenePctiles <- allGenePctiles[,-1]
+genePctilesAvg <- apply(allGenePctiles, 1, median)
+
+## Write out percentiles across cancer types; gene are ordered as
+## in expression data
+write.table(genePctilesAvg, file="genePctilesAvg.tab", quote=F,
+            row.names=F, col.names=F)
+
+##################################################
+
+load("allExpr.rda")
 allExpr <- allExpr[cancerIDs]
 ## Gene names are already aligned: md5sum *_UCSC/geneListExp.list
 allExprMat <-
