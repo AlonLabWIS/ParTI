@@ -1,4 +1,4 @@
-function [arc, arcOrig, pc, errs, pval] = ParTI(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,GOcat2Genes,binSize,OutputFileName)
+function [arc, arcOrig, pc, errs, pval, coefs1] = ParTI(DataPoints,algNum,dim,DiscFeatName,EnMatDis,cols,ContFeatName,EnMatCont,GOcat2Genes,binSize,OutputFileName,arcOrig)
 %% Inputs
 % 1. DataPoints, double matrix with the values of different traits 
 % (the coordinates, e.g. expression level of genes). Each sample is a row, 
@@ -51,7 +51,9 @@ function [arc, arcOrig, pc, errs, pval] = ParTI(DataPoints,algNum,dim,DiscFeatNa
 % MVSA is presented at Li J, Bioucas-Dias JM (2008) in Geoscience and Remote Sensing Symposium, 2008. IGARSS 2008. IEEE International, pp III.250 III.253.
 % SDVMM and MVES are taken from http://mx.nthu.edu.tw/~tsunghan/Source%20codes.html
 % PCHA is taken from http://www.mortenmorup.dk/index_files/Page327.htm
-
+if nargin<12
+    arcOrig=[];
+end
 if nargin<11
     OutputFileName='ParTIoutputFile';
 end
@@ -105,9 +107,9 @@ end
 % Initializing the running algorithm parameters
 global lowIterations;
 
-maxRuns=1000; % current value for the number of data randomization
-numIter=50; % current value for the number of iterations to run the algorithm
-if (algNum == 5) %PCHA, is more consistent between runs
+maxRuns=1000; % number of data randomization
+numIter=50; % number of times we search for a simplex on the same dataset
+if (algNum == 5) %PCHA is more consistent between runs
    numIter=5; 
 end
 if exist('lowIterations', 'var') && ~isempty(lowIterations)
@@ -116,7 +118,21 @@ if exist('lowIterations', 'var') && ~isempty(lowIterations)
     fprintf('Warning! lowIterations flag set: will only run maxRuns = %d and numIter = %d\n', maxRuns, numIter);
 end
 
-[pc, arc, arcOrig, errs, pval] = findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns);
+if size(arcOrig,1) == 0
+    [pc, arc, arcOrig, errs, pval, coefs1] = findArchetypes(DataPoints,algNum,dim,OutputFileName,numIter,maxRuns);
+else
+    %We allow passing archetypes so that indexing can stay constant from run to run
+    fprintf('Will use archetypes passed as argument instead of determining them from scratch.\n');
+    [coefs1,pc] = princomp(DataPoints,'econ');
+    nArch = size(arcOrig,1);
+    trArcOrig = bsxfun(@minus,arcOrig,mean(DataPoints));
+    
+    arc = trArcOrig * coefs1(:,1:(nArch-1));
+    errs = nan;
+    pval = nan;
+end
+
+
 
 calculateEnrichment(pc(:,1:size(arc,2)),arc,DiscFeatName,EnMatDis,ContFeatName,EnMatCont,binSize,OutputFileName,numIter,algNum,GOcat2Genes,DataPoints,maxRuns);
 

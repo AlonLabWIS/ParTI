@@ -96,7 +96,7 @@ table =  [repmat((1:Numarchs)',numFeatures,1),... %arch number
    if numOfPlot < maxNumOfPlot
     for fig = 1:numOfPlot
         %    for feat = 1:numFeatures
-        figure;
+        h = figure;
         for subp = ((fig-1)*numFeatPerPlot+1):min(fig*numFeatPerPlot,length(featuresToDraw))
 %            subplot(subRows,subCols,mod(subp,numFeatPerPlot)+1);
             subplot(subRows,subCols,mod(subp-1,numFeatPerPlot)+1);
@@ -113,9 +113,10 @@ table =  [repmat((1:Numarchs)',numFeatures,1),... %arch number
         end
         legend(leg);
         set(gcf,'units','normalized','outerposition',[0, 0 , 1, 1]);
-        figname = [OutputFileName,num2str(fig + 4),'_discrete_enrichment_',num2str(fig)]; 
+        %figname = [OutputFileName,num2str(fig + 4),'_discreteEnrichment',num2str(fig)]; 
+        figname = sprintf('%s_discreteEnrichment%d', OutputFileName, fig);
         if exist('savefig')
-            savefig(figname);
+            savefig(h, figname);
         end
     end
    else

@@ -69,7 +69,7 @@ continuousTable = ContinuousEnrichment(orderedIndices,EnMatCont,binSize);
 disp('Finished computing continuous enrichments.');
 
 %calculate the significance after a leave-1-out procedure
-if ~isnan(continuousTable) & evalPmax & length(ContFeatName) > 0
+if length(continuousTable)>1 && evalPmax && ~isempty(ContFeatName)
     disp('Now applying leave-one-out to verify robustness enrichment of GO categories');
     NArchetypes=size(Archetypes,1);
     
@@ -110,7 +110,7 @@ if size(discreteTable,2) >= 3 && sum(~isnan(discreteTable(:,3))) > 0
     ordDiscFeatureNames = DiscFeatName(ordDiscTable(:,2))';
     fullTable = [DiscreteTitles; num2cell(ordDiscTable)];
     fullTable(2:end,2) = ordDiscFeatureNames;
-    cell2csv([OutputFileName '_discrete_All.csv'], fullTable);
+    cell2csv(sprintf('%s_discrete_All.csv', OutputFileName), fullTable);
 %     xlswrite([OutputFileName '_All.xls'], DiscreteTitles     ,1,'A1:E1');
 %     xlswrite([OutputFileName '_All.xls'], ordDiscTable       ,1,'A2');
 %     xlswrite([OutputFileName '_All.xls'], ordDiscFeatureNames,1,'B2');
@@ -120,7 +120,7 @@ if size(discreteTable,2) >= 3 && sum(~isnan(discreteTable(:,3))) > 0
     
     fullTable = [DiscreteTitles; num2cell(filteredDiscTable)];
     fullTable(2:end,2) = FiltDiscFeatureNames;
-    cell2csv([OutputFileName '_discrete_significant.csv'], fullTable);
+    cell2csv(sprintf('%s_discrete_significant.csv', OutputFileName), fullTable);
     fprintf('*** Wrote summary of enriched discrete features to %s_discrete_significant.csv\n', OutputFileName);
 %     xlswrite([OutputFileName '_significant.xls'], DiscreteTitles          ,1,'A1:E1');
 %     xlswrite([OutputFileName '_significant.xls'], filteredDiscTable       ,1,'A2');
@@ -137,7 +137,7 @@ if size(continuousTable,2) >= 3 && sum(~isnan(continuousTable(:,3))) > 0
     
     fullTable = [ContinuousTitles; num2cell(ordContTable)];
     fullTable(2:end,2) = ordContFeatureNames;
-    cell2csv([OutputFileName '_continuous_All.csv'], fullTable);
+    cell2csv(sprintf('%s_continuous_All.csv', OutputFileName), fullTable);
 %     xlswrite([OutputFileName '_All.xls'], ContinuousTitles     ,2,'A1:F1');
 %     xlswrite([OutputFileName '_All.xls'], ordContTable       ,2,'A2');
 %     xlswrite([OutputFileName '_All.xls'], ordContFeatureNames,2,'B2');
@@ -146,7 +146,7 @@ if size(continuousTable,2) >= 3 && sum(~isnan(continuousTable(:,3))) > 0
     FiltContFeatureNames = ContFeatName(filteredContTable(:,2))';
     fullTable = [ContinuousTitles; num2cell(filteredContTable)];
     fullTable(2:end,2) = FiltContFeatureNames;
-    cell2csv([OutputFileName '_continuous_significant.csv'], fullTable);
+    cell2csv(sprintf('%s_continuous_significant.csv', OutputFileName), fullTable);
     fprintf('*** Wrote summary of enriched continuous features to %s_continuous_significant.csv\n', OutputFileName);
 %     xlswrite([OutputFileName '_significant.xls'], ContinuousTitles          ,2,'A1:F1');
 %     xlswrite([OutputFileName '_significant.xls'], filteredContTable         ,2,'A2');

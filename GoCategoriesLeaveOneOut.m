@@ -30,8 +30,9 @@ a=zeros(1,length(GOidx));
 
 indGOlen = length(indGO);
 for idx=1:indGOlen
+%for idx=1:5 %DEBUG
     i = indGO(idx);
-    if mod(idx,round(indGOlen/10)) == 0
+    if mod(idx,round(indGOlen/20)) == 0
         fprintf('%.0f%% done\n', 100*idx/indGOlen);
     end
 
@@ -43,7 +44,7 @@ for idx=1:indGOlen
         
         %% Do PCA on the data
         %     fprintf('Starting to perform PCA, for big data on slow computers this may take a while...\n');
-        [~,scores1,~] = princomp(DataPointsWO);
+        [~,scores1,~] = princomp(DataPointsWO,'econ');
         
         DataPCA=scores1;
         
